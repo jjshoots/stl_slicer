@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class ModelStore(Protocol):
     """Loaded models keyed by `asset.model_id`, with bounded capacity."""
 
-    def put(self, model: LoadedModel) -> None: ...
+    def put(self, model: LoadedModel) -> list[str]: ...
 
     def get(self, model_id: str) -> LoadedModel: ...
 
@@ -47,14 +47,21 @@ class InMemoryModelStore:
     def capacity(self) -> int:
         return self._capacity
 
-    def put(self, model: LoadedModel) -> None:
-        """Insert (or replace) a model as most recently used, evicting the LRU beyond capacity."""
+    def put(self, model: LoadedModel) -> list[str]:
+        """Insert (or replace) a model as most recently used, evicting the LRU beyond capacity.
+
+        Returns:
+            The ids of the evicted models, oldest first (empty if none were evicted).
+        """
         key = model.asset.model_id
+        evicted: list[str] = []
         with self._lock:
             self._items[key] = model
             self._items.move_to_end(key)
             while len(self._items) > self._capacity:
-                self._items.popitem(last=False)
+                old, _ = self._items.popitem(last=False)
+                evicted.append(old)
+        return evicted
 
     def get(self, model_id: str) -> LoadedModel:
         """Return a model and mark it most recently used. Raises KeyError if unknown."""

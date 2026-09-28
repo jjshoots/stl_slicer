@@ -17,7 +17,7 @@ import trimesh
 from stl_slicer.core.geometry import Mesh, Piece
 from stl_slicer.core.models import SliceResult
 
-__all__ = ["mesh_to_glb", "mesh_to_stl", "pieces_to_glb", "pieces_to_zip"]
+__all__ = ["mesh_to_glb", "mesh_to_stl", "piece_to_stl", "pieces_to_glb", "pieces_to_zip"]
 
 
 def _to_trimesh(mesh: Mesh) -> trimesh.Trimesh:
@@ -36,6 +36,11 @@ def _as_bytes(data: object) -> bytes:
 def mesh_to_stl(mesh: Mesh) -> bytes:
     """Binary STL of `mesh`, in whatever frame the mesh is in."""
     return _as_bytes(_to_trimesh(mesh).export(file_type="stl"))
+
+
+def piece_to_stl(piece: Piece) -> bytes:
+    """Binary STL of a piece in the print frame (translated by `piece.info.print_offset`)."""
+    return mesh_to_stl(piece.mesh.translate(piece.info.print_offset))
 
 
 def mesh_to_glb(mesh: Mesh) -> bytes:
@@ -68,7 +73,6 @@ def pieces_to_zip(pieces: Sequence[Piece], result: SliceResult) -> bytes:
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for piece in pieces:
-            printed = piece.mesh.translate(piece.info.print_offset)
-            zf.writestr(f"{piece.info.piece_id}.stl", mesh_to_stl(printed))
+            zf.writestr(f"{piece.info.piece_id}.stl", piece_to_stl(piece))
         zf.writestr("manifest.json", result.model_dump_json(indent=2))
     return buf.getvalue()

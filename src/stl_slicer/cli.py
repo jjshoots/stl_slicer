@@ -117,8 +117,7 @@ def slice_cmd(
 
     out.mkdir(parents=True, exist_ok=True)
     for piece in output.pieces:
-        printed = piece.mesh.translate(piece.info.print_offset)
-        (out / f"{piece.info.piece_id}.stl").write_bytes(exporters.mesh_to_stl(printed))
+        (out / f"{piece.info.piece_id}.stl").write_bytes(exporters.piece_to_stl(piece))
     result = output.result
     (out / "manifest.json").write_text(result.model_dump_json(indent=2))
 

@@ -22,7 +22,13 @@ from stl_slicer.core.models import (
     SliceSpec,
     SliceStats,
 )
-from stl_slicer.io.exporters import mesh_to_glb, mesh_to_stl, pieces_to_glb, pieces_to_zip
+from stl_slicer.io.exporters import (
+    mesh_to_glb,
+    mesh_to_stl,
+    piece_to_stl,
+    pieces_to_glb,
+    pieces_to_zip,
+)
 
 
 def _make_piece(i: int, mesh: Mesh) -> Piece:
@@ -164,3 +170,18 @@ def test_pieces_to_zip_empty(pieces: list[Piece]) -> None:
     data = pieces_to_zip([], _result(pieces))
     with zipfile.ZipFile(BytesIO(data)) as zf:
         assert zf.namelist() == ["manifest.json"]
+
+
+def test_piece_to_stl_is_print_frame(pieces: list[Piece]) -> None:
+    piece = pieces[1]
+    data = piece_to_stl(piece)
+    assert data == mesh_to_stl(piece.mesh.translate(piece.info.print_offset))
+    tm = _load_trimesh(data, "stl")
+    assert tm.bounds[0] == pytest.approx((-5, -5, 0), abs=1e-6)
+    assert tm.bounds[1] == pytest.approx((5, 5, 20), abs=1e-6)
+
+
+def test_pieces_to_zip_uses_piece_to_stl(pieces: list[Piece]) -> None:
+    with zipfile.ZipFile(BytesIO(pieces_to_zip(pieces, _result(pieces)))) as zf:
+        for piece in pieces:
+            assert zf.read(f"{piece.info.piece_id}.stl") == piece_to_stl(piece)

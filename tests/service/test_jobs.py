@@ -60,8 +60,9 @@ class _Models:
             for mid in model_ids
         }
 
-    def put(self, model: Any) -> None:
+    def put(self, model: Any) -> list[str]:
         self._items[model.asset.model_id] = model
+        return []
 
     def get(self, model_id: str) -> Any:
         return self._items[model_id]
@@ -385,3 +386,70 @@ def test_cancel_model_cancels_only_that_models_live_jobs(make_runner: Any) -> No
     assert runner.get(other.job_id).status in (JobStatus.QUEUED, JobStatus.RUNNING)
     assert runner.cancel_model("m1") == []
     release.set()
+
+
+def test_cancel_observed_after_slicer_returns_stores_nothing(make_runner: Any) -> None:
+    def hook(model: Any, progress: Any, cancel: Any, job_id: str) -> None:
+        cancel.cancel()  # cancelled after the slicer's last check, just before it returns
+
+    runner, artifacts = make_runner(_Slicer(hook))
+    job = runner.submit("m1", SPEC)
+    final = runner.wait(job.job_id, timeout=TIMEOUT)
+    assert final.status is JobStatus.CANCELLED
+    assert final.step == "cancelled"
+    assert final.result is None
+    assert artifacts.put_calls == []
+
+
+def test_only_newest_terminal_jobs_per_model_are_kept(make_runner: Any) -> None:
+    runner, _ = make_runner(_Slicer(), "m1", "m2")
+    ids = []
+    for _ in range(4):
+        job = runner.submit("m1", SPEC)
+        assert runner.wait(job.job_id, timeout=TIMEOUT).status is JobStatus.DONE
+        ids.append(job.job_id)
+    other = runner.submit("m2", SPEC)
+    assert runner.wait(other.job_id, timeout=TIMEOUT).status is JobStatus.DONE
+
+    for old in ids[:2]:
+        with pytest.raises(KeyError):
+            runner.get(old)
+    assert [runner.get(j).status for j in ids[2:]] == [JobStatus.DONE, JobStatus.DONE]
+    assert runner.get(other.job_id).status is JobStatus.DONE
+
+
+def test_pruning_never_drops_live_jobs() -> None:
+    release = threading.Event()
+
+    def hook(model: Any, progress: Any, cancel: Any, job_id: str) -> None:
+        assert release.wait(TIMEOUT)  # ignores the token: stays RUNNING after a supersede
+
+    slicer = _Slicer(hook)
+    runner = ThreadJobRunner(
+        _Models("m1"), _Artifacts(), slicer=slicer, token_factory=_Token, jobs_per_model=1
+    )
+    try:
+        running = runner.submit("m1", SPEC)
+        _until(_running(runner, running.job_id))
+        j2 = runner.submit("m1", SPEC)  # supersedes `running` (still RUNNING until it returns)
+        j3 = runner.submit("m1", SPEC)  # j2: QUEUED -> CANCELLED
+        j4 = runner.submit("m1", SPEC)  # j3: QUEUED -> CANCELLED; j2 pruned
+        assert runner.get(running.job_id).status is JobStatus.RUNNING
+        assert runner.get(j4.job_id).status is JobStatus.QUEUED
+        assert runner.get(j3.job_id).status is JobStatus.CANCELLED
+        with pytest.raises(KeyError):
+            runner.get(j2.job_id)
+
+        release.set()
+        assert runner.wait(j4.job_id, timeout=TIMEOUT).status is JobStatus.DONE
+        for gone in (running.job_id, j3.job_id):
+            with pytest.raises(KeyError):
+                runner.get(gone)
+    finally:
+        release.set()
+        runner.shutdown()
+
+
+def test_rejects_bad_jobs_per_model() -> None:
+    with pytest.raises(ValueError):
+        ThreadJobRunner(_Models("m1"), _Artifacts(), jobs_per_model=0)

@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from stl_slicer.api.app import create_app
 from stl_slicer.core.models import CutPlan, Job, MeshAsset, SliceResult
+from stl_slicer.io.exporters import piece_to_stl
 
 SPHERE = Path(__file__).resolve().parents[1] / "fixtures" / "sphere.stl"
 SPEC = {"print_volume": {"x": 40, "y": 40, "z": 40}}
@@ -84,6 +85,9 @@ def test_upload_plan_slice_download_delete(client: TestClient) -> None:
     assert res.status_code == 200
     piece = trimesh.load(io.BytesIO(res.content), file_type="stl", force="mesh")
     assert piece.bounds[0][2] == pytest.approx(0.0, abs=1e-6)
+    stored = client.app.state.artifacts.get_piece(job.job_id, pid)
+    assert res.content == piece_to_stl(stored)
+    assert client.get(f"/api/jobs/{job.job_id}/pieces/nope.stl").status_code == 404
 
     res = client.get(f"/api/jobs/{job.job_id}/download.zip")
     assert res.status_code == 200

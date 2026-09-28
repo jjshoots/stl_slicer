@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
@@ -27,6 +28,8 @@ from stl_slicer.service.stores import (
 
 if TYPE_CHECKING:
     from stl_slicer.core.geometry import LoadedModel
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 
@@ -112,6 +115,13 @@ def create_app(
     app.include_router(routes_misc.router)
 
     dist = web_dist if web_dist is not None else DEFAULT_WEB_DIST
-    if serve_web and dist.is_dir():
-        app.mount("/", StaticFiles(directory=dist, html=True), name="web")
+    if serve_web:
+        if dist.is_dir():
+            app.mount("/", StaticFiles(directory=dist, html=True), name="web")
+        else:
+            logger.warning(
+                "web UI not served: %s does not exist (build it with `cd web && npm run build`); "
+                "serving the API only",
+                dist,
+            )
     return app

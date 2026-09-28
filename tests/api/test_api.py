@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from stl_slicer.core.models import (
     PrinterPreset,
     SliceSpec,
 )
+from stl_slicer.service.stores import InMemoryModelStore
 
 BOUNDS = Bounds(min=(0, 0, 0), max=(10, 10, 10))
 
@@ -35,8 +37,9 @@ class FakeModels:
     def __init__(self) -> None:
         self.data: dict[str, Any] = {}
 
-    def put(self, model: Any) -> None:
+    def put(self, model: Any) -> list[str]:
         self.data[model.asset.model_id] = model
+        return []
 
     def get(self, model_id: str) -> Any:
         return self.data[model_id]
@@ -73,6 +76,12 @@ class FakeArtifacts:
 
     def job_ids(self, model_id: str) -> list[str]:
         return list(self.data)
+
+    def get_piece(self, job_id: str, piece_id: str) -> Any:
+        for piece in self.data[job_id].pieces:
+            if piece.info.piece_id == piece_id:
+                return piece
+        raise KeyError(piece_id)
 
 
 @dataclass
@@ -230,6 +239,27 @@ def test_delete_model(env: Env) -> None:
     assert r.content == b""
     assert env.artifacts.deleted_models == ["m1"]
     assert env.client.get("/api/models/m1").status_code == 404
+
+
+def test_upload_evicting_a_model_drops_its_jobs_and_artifacts() -> None:
+    def loader(data: bytes, filename: str, scale: float) -> _Model:
+        model = fake_loader(data, filename, scale)
+        return _Model(asset=model.asset.model_copy(update={"model_id": filename[:-4]}))
+
+    store = InMemoryModelStore(capacity=4)
+    artifacts = FakeArtifacts()
+    runner = FakeRunner(store)
+    app = create_app(store, artifacts, runner, False, loader=loader, planner=fake_planner)
+    client = TestClient(app)
+    for name in ("a", "b", "c", "d"):
+        assert client.post("/api/models", files={"file": (f"{name}.stl", b"x")}).status_code == 200
+    job_id = client.post("/api/models/a/slice", json=SPEC).json()["job_id"]
+    assert artifacts.deleted_models == []
+
+    assert client.post("/api/models", files={"file": ("e.stl", b"x")}).status_code == 200
+    assert store.ids() == ["b", "c", "d", "e"]
+    assert artifacts.deleted_models == ["a"]
+    assert client.get(f"/api/jobs/{job_id}").json()["status"] == "cancelled"
 
 
 def test_delete_model_cancels_its_live_job(env: Env) -> None:
@@ -397,7 +427,25 @@ def test_static_mount_disabled(tmp_path: Path) -> None:
     assert TestClient(app).get("/").status_code == 404
 
 
-def test_static_mount_skipped_when_missing(tmp_path: Path) -> None:
+def test_static_mount_skipped_when_missing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     models = FakeModels()
-    app = create_app(models, FakeArtifacts(), FakeRunner(models), web_dist=tmp_path / "missing")
+    missing = tmp_path / "missing"
+    with caplog.at_level(logging.WARNING, logger="stl_slicer.api.app"):
+        app = create_app(models, FakeArtifacts(), FakeRunner(models), web_dist=missing)
     assert TestClient(app).get("/").status_code == 404
+    assert TestClient(app).get("/api/health").json() == {"status": "ok"}
+    (record,) = [r for r in caplog.records if r.name == "stl_slicer.api.app"]
+    assert record.levelno == logging.WARNING
+    assert str(missing) in record.getMessage()
+    assert "cd web && npm run build" in record.getMessage()
+
+
+def test_no_missing_dist_warning_when_web_disabled(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    models = FakeModels()
+    with caplog.at_level(logging.WARNING, logger="stl_slicer.api.app"):
+        create_app(models, FakeArtifacts(), FakeRunner(models), False, web_dist=tmp_path / "x")
+    assert not [r for r in caplog.records if r.name == "stl_slicer.api.app"]

@@ -38,6 +38,17 @@ def test_box_volume_bounds_triangles() -> None:
     assert not m.is_empty
 
 
+def test_from_bounds_is_exact_aabb() -> None:
+    b = Bounds(min=(-4.5, 2.0, 10.0), max=(6.0, 12.25, 18.0))
+    m = Mesh.from_bounds(b)
+    assert m.bounds.min == approx_tuple(b.min)
+    assert m.bounds.max == approx_tuple(b.max)
+    assert m.volume == pytest.approx(10.5 * 10.25 * 8.0)
+    assert m.triangle_count == 12
+    ref = Mesh.box(b.size, b.center)
+    assert (m - ref).volume == pytest.approx(0.0, abs=1e-6)
+
+
 def test_sphere_volume() -> None:
     r = 10.0
     assert Mesh.sphere(r).volume == pytest.approx(4 / 3 * math.pi * r**3, rel=0.02)

@@ -20,7 +20,7 @@ from manifold3d import Manifold, OpType
 from stl_slicer.core.errors import SliceInvariantError
 from stl_slicer.core.geometry import Joint, Mesh, Piece, Region2D
 from stl_slicer.core.models import (
-    Cell,
+    Axis,
     CellIndex,
     CutInterface,
     CutPlan,
@@ -28,6 +28,7 @@ from stl_slicer.core.models import (
     PieceInfo,
     SliceStats,
     SliceWarning,
+    Vec3,
     WarningCode,
 )
 
@@ -54,29 +55,31 @@ def contact_regions(
     inset by `edge_inset` along the rect edges that lie on another cut plane.
 
     Slicing at ±eps (rather than exactly on the plane) keeps a mesh face coplanar with the cut
-    from overstating the contact area (M18)."""
+    from overstating the contact area (M18).
+
+    The mesh is sliced once per distinct cut plane ``(axis, position)``; interfaces on the same
+    plane share u, v and normal and differ only in their in-plane origin, so each reuses the
+    plane's section translated into its own frame."""
+    sections: dict[tuple[Axis, float], tuple[Vec3, Region2D]] = {}
     out: dict[str, Region2D] = {}
     for interface in plan.interfaces:
-        below = mesh.cross_section(interface.frame, -eps)
-        above = mesh.cross_section(interface.frame, eps)
-        region = below & above & Region2D.rect(*interface.rect)
+        frame = interface.frame
+        key = (interface.axis, interface.position)
+        cached = sections.get(key)
+        if cached is None:
+            below = mesh.cross_section(frame, -eps)
+            above = mesh.cross_section(frame, eps)
+            cached = sections[key] = (frame.origin, below & above)
+        origin, both = cached
+        delta = [o - c for o, c in zip(frame.origin, origin, strict=True)]
+        du = sum(d * u for d, u in zip(delta, frame.u, strict=True))
+        dv = sum(d * v for d, v in zip(delta, frame.v, strict=True))
+        section = both if du == 0.0 and dv == 0.0 else both.translate(-du, -dv)
+        region = section & Region2D.rect(*interface.rect)
         if edge_inset > 0:
             region = region.inset_edges(edge_inset, interface.interior_edges, interface.rect)
         out[interface.id] = region
     return out
-
-
-def _cell_box(cell: Cell) -> Manifold:
-    lo, size = cell.bounds.min, cell.bounds.size
-    return Manifold.cube([float(s) for s in size]).translate([float(x) for x in lo])
-
-
-def _plan_box(plan: CutPlan) -> Manifold:
-    """AABB of the whole plan. Joint volume outside it lies outside every cell (and the mesh),
-    so clipping it away is harmless; only volume inside it but outside the female cell would
-    have reached a neighbouring cell, and that is what JOINT_CLIPPED reports."""
-    lo, size = plan.bounds.min, plan.bounds.size
-    return Manifold.cube([float(s) for s in size]).translate([float(x) for x in lo])
 
 
 def joint_cells(
@@ -85,15 +88,19 @@ def joint_cells(
     """Cell solids after applying joints: ``(cube(cell) + males_out) - females_in``, with every
     male/female solid clipped to its female cell first. Warns JOINT_CLIPPED when clipping
     removed male volume that lay inside the plan bounds (i.e. would have reached another cell);
-    overshoot past the plan's outer bounds is outside the mesh and ignored."""
-    boxes = {cell.id: _cell_box(cell) for cell in plan.cells}
-    plan_box = _plan_box(plan)
+    overshoot past the plan's outer bounds is outside the mesh and ignored.
+
+    Joint volume outside the plan's AABB lies outside every cell (and the mesh), so clipping it
+    away is harmless; only volume inside it but outside the female cell would have reached a
+    neighbouring cell, and that is what JOINT_CLIPPED reports."""
+    boxes = {cell.id: Mesh.from_bounds(cell.bounds).manifold for cell in plan.cells}
+    plan_box = Mesh.from_bounds(plan.bounds).manifold
     males_out: defaultdict[str, list[Manifold]] = defaultdict(list)
     females_in: defaultdict[str, list[Manifold]] = defaultdict(list)
     warnings: list[SliceWarning] = []
 
     for joint in joints:
-        fbox = boxes[plan.cell(joint.female_cell).id]
+        fbox = boxes[joint.female_cell.id]
         male_c = joint.male ^ fbox
         female_c = joint.female ^ fbox
         lost = float((joint.male ^ plan_box).volume()) - float(male_c.volume())

@@ -6,6 +6,7 @@ Leaf module: imports nothing from the package. All lengths are millimetres in th
 
 from __future__ import annotations
 
+import functools
 import math
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -174,11 +175,17 @@ class CutPlan(_Frozen):
         """Upper bound on the number of pieces (empty cells are dropped at slice time)."""
         return len(self.cells)
 
+    @functools.cached_property
+    def cells_by_id(self) -> dict[str, Cell]:
+        """``{cell.id: cell}``, built once per instance (not a field: never serialised/compared)."""
+        return {c.id: c for c in self.cells}
+
     def cell(self, index: CellIndex) -> Cell:
-        for c in self.cells:
-            if c.index == index:
-                return c
-        raise KeyError(index.id)
+        """The cell at `index` (O(1)). Raises KeyError(index.id) if the plan has no such cell."""
+        found = self.cells_by_id.get(index.id)
+        if found is None:
+            raise KeyError(index.id)
+        return found
 
 
 # --- joint specs: a discriminated union; adding a kind = adding a model + a generator -------------

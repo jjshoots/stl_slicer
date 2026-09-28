@@ -85,8 +85,7 @@ def _axis_of(vec: Vec3) -> Axis:
 
 
 def _cell_occupied(mesh: Mesh, cell: Cell) -> bool:
-    b = cell.bounds
-    return not (mesh & Mesh.box(b.size, b.center)).is_empty
+    return not (mesh & Mesh.from_bounds(cell.bounds)).is_empty
 
 
 def _place_joints(

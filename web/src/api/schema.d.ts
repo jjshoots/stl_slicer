@@ -16,6 +16,9 @@ export interface paths {
         /**
          * Upload Model
          * @description Upload a mesh file; 422 if it cannot be made manifold.
+         *
+         *     A plain `def` so the (blocking) read and load run in the threadpool. Models evicted from the
+         *     store to make room have their live jobs cancelled and their slice artifacts dropped.
          */
         post: operations["upload_model"];
         delete?: never;

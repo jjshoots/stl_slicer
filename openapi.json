@@ -11,7 +11,7 @@
           "models"
         ],
         "summary": "Upload Model",
-        "description": "Upload a mesh file; 422 if it cannot be made manifold.",
+        "description": "Upload a mesh file; 422 if it cannot be made manifold.\n\nA plain `def` so the (blocking) read and load run in the threadpool. Models evicted from the\nstore to make room have their live jobs cancelled and their slice artifacts dropped.",
         "operationId": "upload_model",
         "requestBody": {
           "content": {

@@ -71,3 +71,29 @@ def test_slice_spec_json_schema_uses_discriminator() -> None:
     schema = SliceSpec.model_json_schema()
     joint = schema["properties"]["joint"]
     assert "discriminator" in joint or "oneOf" in joint
+
+
+def test_cut_plan_cell_lookup_is_cached_and_not_serialised() -> None:
+    from stl_slicer.core.models import AxisCuts, Bounds, Cell, CellIndex, CellLimits, CutPlan
+
+    bounds = Bounds(min=(0, 0, 0), max=(10, 10, 10))
+    cells = [
+        Cell(
+            index=CellIndex(i=i, j=0, k=0),
+            bounds=Bounds(min=(5 * i, 0, 0), max=(5 * i + 5, 10, 10)),
+        )
+        for i in range(2)
+    ]
+    plan = CutPlan(
+        bounds=bounds,
+        limits=CellLimits(max_cell=(5, 10, 10)),
+        cuts=AxisCuts(x=[5.0]),
+        cells=cells,
+        interfaces=[],
+    )
+    assert plan.cell(CellIndex(i=1, j=0, k=0)) is cells[1]
+    assert plan.cells_by_id is plan.cells_by_id  # built once
+    with pytest.raises(KeyError, match="x7_y0_z0"):
+        plan.cell(CellIndex(i=7, j=0, k=0))
+    assert "cells_by_id" not in plan.model_dump()
+    assert plan == CutPlan.model_validate_json(plan.model_dump_json())

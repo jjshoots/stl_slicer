@@ -56,14 +56,12 @@ def get_piece_stl(job_id: str, piece_id: str, artifacts: ArtifactsDep) -> Respon
     """Return one piece as STL in the print frame (min z = 0, xy-centred)."""
     from stl_slicer.io import exporters
 
-    output = artifacts.get(job_id)
-    for piece in output.pieces:
-        if piece.info.piece_id == piece_id:
-            data = exporters.mesh_to_stl(piece.mesh.translate(piece.info.print_offset))
-            return Response(
-                content=data, media_type=STL_MEDIA_TYPE, headers=_attachment(f"{piece_id}.stl")
-            )
-    raise KeyError(piece_id)
+    piece = artifacts.get_piece(job_id, piece_id)
+    return Response(
+        content=exporters.piece_to_stl(piece),
+        media_type=STL_MEDIA_TYPE,
+        headers=_attachment(f"{piece_id}.stl"),
+    )
 
 
 @router.get(

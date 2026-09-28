@@ -15,16 +15,24 @@ router = APIRouter(prefix="/api/models", tags=["models"])
 
 
 @router.post("", response_model=MeshAsset, operation_id="upload_model")
-async def upload_model(
+def upload_model(
     models: ModelsDep,
+    artifacts: ArtifactsDep,
+    runner: RunnerDep,
     loader: LoaderDep,
     file: Annotated[UploadFile, File()],
     scale: Annotated[float, Form(gt=0)] = 1.0,
 ) -> MeshAsset:
-    """Upload a mesh file; 422 if it cannot be made manifold."""
-    data = await file.read()
+    """Upload a mesh file; 422 if it cannot be made manifold.
+
+    A plain `def` so the (blocking) read and load run in the threadpool. Models evicted from the
+    store to make room have their live jobs cancelled and their slice artifacts dropped.
+    """
+    data = file.file.read()
     model = loader(data, file.filename or "model.stl", scale)
-    models.put(model)
+    for evicted in models.put(model):
+        runner.cancel_model(evicted)
+        artifacts.delete_model(evicted)
     return model.asset
 
 

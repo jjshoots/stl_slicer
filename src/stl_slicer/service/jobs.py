@@ -84,6 +84,8 @@ class ThreadJobRunner:
         executor: Worker pool; defaults to `ThreadPoolExecutor(max_workers=1)`.
         slicer: Slice function; defaults to `core.pipeline.slice_model` (imported lazily).
         token_factory: Cancel-token constructor; defaults to `core.pipeline.CancelToken`.
+        jobs_per_model: How many terminal (DONE/FAILED/CANCELLED) jobs to remember per model; older
+            ones are forgotten (same cap as the artifact store's). Live jobs are never dropped.
     """
 
     def __init__(
@@ -93,12 +95,16 @@ class ThreadJobRunner:
         executor: ThreadPoolExecutor | None = None,
         slicer: Slicer | None = None,
         token_factory: Callable[[], CancelHandle] | None = None,
+        jobs_per_model: int = 2,
     ) -> None:
+        if jobs_per_model < 1:
+            raise ValueError("jobs_per_model must be >= 1")
         self._models = models
         self._artifacts = artifacts
         self._executor = executor or ThreadPoolExecutor(max_workers=1, thread_name_prefix="slice")
         self._slicer = slicer
         self._token_factory = token_factory
+        self._jobs_per_model = jobs_per_model
         self._entries: dict[str, _Entry] = {}
         self._lock = threading.Lock()
 
@@ -121,6 +127,7 @@ class ThreadJobRunner:
             # other thread can see the entry; the worker simply waits for the lock.
             entry.future = self._executor.submit(self._run, entry, model, spec, slicer)
             self._entries[job_id] = entry
+            self._prune_locked(model_id)
             return entry.job.model_copy(deep=True)
 
     def get(self, job_id: str) -> Job:
@@ -137,7 +144,9 @@ class ThreadJobRunner:
         with self._lock:
             entry = self._entries[job_id]
             self._cancel_locked(entry)
-            return entry.job.model_copy(deep=True)
+            snapshot = entry.job.model_copy(deep=True)
+            self._prune_locked(entry.job.model_id)
+            return snapshot
 
     def cancel_model(self, model_id: str) -> list[Job]:
         """Cancel every live job of a model (used when the model is deleted); returns snapshots."""
@@ -147,21 +156,25 @@ class ThreadJobRunner:
                 if entry.job.model_id == model_id and entry.job.status in _LIVE:
                     self._cancel_locked(entry)
                     cancelled.append(entry.job.model_copy(deep=True))
+            self._prune_locked(model_id)
             return cancelled
 
     def wait(self, job_id: str, timeout: float | None = None) -> Job:
         """Block until a job's worker has finished, then return its snapshot.
+
+        The snapshot is returned even if the job was pruned from the runner meanwhile.
 
         Raises:
             KeyError: If the job is unknown.
             TimeoutError: If the worker is still running after `timeout` seconds.
         """
         with self._lock:
-            future = self._entries[job_id].future
-        if future is not None:
+            entry = self._entries[job_id]
+        if entry.future is not None:
             with contextlib.suppress(CancelledError):  # never started; already CANCELLED
-                future.result(timeout=timeout)
-        return self.get(job_id)
+                entry.future.result(timeout=timeout)
+        with self._lock:
+            return entry.job.model_copy(deep=True)
 
     def shutdown(self) -> None:
         """Cancel every live job and wait for the worker to drain."""
@@ -182,6 +195,16 @@ class ThreadJobRunner:
             if entry.future is not None:
                 entry.future.cancel()
 
+    def _prune_locked(self, model_id: str) -> None:
+        """Forget all but the newest `jobs_per_model` terminal jobs of a model (live ones stay)."""
+        terminal = [
+            job_id
+            for job_id, e in self._entries.items()  # insertion order = submission order
+            if e.job.model_id == model_id and e.job.status not in _LIVE
+        ]
+        for job_id in terminal[: -self._jobs_per_model]:
+            del self._entries[job_id]
+
     def _run(self, entry: _Entry, model: LoadedModel, spec: SliceSpec, slicer: Slicer) -> None:
         job = entry.job
         token = entry.token
@@ -200,8 +223,15 @@ class ThreadJobRunner:
                 job.status = JobStatus.RUNNING
                 job.step = "starting"
             output = slicer(model, spec, progress=sink, cancel=token, job_id=job.job_id)
-            self._artifacts.put(output)
+            # Checked under the lock (where `cancel` sets the token) so a cancel that lands after
+            # the slicer's last check still wins and nothing is stored for a cancelled job.
             with self._lock:
+                if token.is_cancelled:
+                    job.status = JobStatus.CANCELLED
+                    job.step = "cancelled"
+                    job.result = None
+                    return
+                self._artifacts.put(output)
                 job.result = output.result
                 job.status = JobStatus.DONE
                 job.progress = 1.0
@@ -216,3 +246,6 @@ class ThreadJobRunner:
                 job.status = JobStatus.FAILED
                 job.error = str(e)
                 job.step = "failed"
+        finally:
+            with self._lock:
+                self._prune_locked(job.model_id)

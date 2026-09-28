@@ -74,6 +74,12 @@ class Mesh:
         return cls(cube.translate([center[0] - sx / 2, center[1] - sy / 2, center[2] - sz / 2]))
 
     @classmethod
+    def from_bounds(cls, bounds: Bounds) -> Mesh:
+        """Axis-aligned box spanning `bounds` exactly (min corner at `bounds.min`)."""
+        size = [float(s) for s in bounds.size]
+        return cls(Manifold.cube(size).translate([float(x) for x in bounds.min]))
+
+    @classmethod
     def sphere(cls, radius: float, segments: int = 64) -> Mesh:
         return cls(Manifold.sphere(float(radius), int(segments)))
 

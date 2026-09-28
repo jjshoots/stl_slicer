@@ -165,6 +165,32 @@ def test_coplanar_face_does_not_overstate_contact_m18(
     assert naive.area == pytest.approx(naive_area, rel=REL)
 
 
+@pytest.mark.parametrize("edge_inset", [0.0, 6.15])
+def test_contact_regions_shared_plane_matches_per_interface_slicing(edge_inset: float) -> None:
+    # Asymmetric solid so a wrong in-plane translation between interfaces would show up.
+    mesh = Mesh.sphere(40.0, 48).translate((45.0, 55.0, 50.0)) | _box_mesh((0, 0, 0), (30, 90, 40))
+    plan = plan_grid(
+        Bounds(min=(0, 0, 0), max=(100, 100, 100)),
+        CellLimits(max_cell=(100, 100, 100)),
+        AxisCuts(x=[40], y=[35, 70]),
+    )
+    planes = [(i.axis, i.position) for i in plan.interfaces]
+    assert any(planes.count(p) > 1 for p in planes)  # several interfaces share a plane
+
+    regions = contact_regions(mesh, plan, edge_inset)
+    eps = 1e-3
+    for iface in plan.interfaces:
+        below = mesh.cross_section(iface.frame, -eps)
+        above = mesh.cross_section(iface.frame, eps)
+        expected = below & above & Region2D.rect(*iface.rect)
+        if edge_inset > 0:
+            expected = expected.inset_edges(edge_inset, iface.interior_edges, iface.rect)
+        got = regions[iface.id]
+        assert got.area == pytest.approx(expected.area, rel=1e-9, abs=1e-9)
+        if not expected.is_empty:
+            assert got.bounds == pytest.approx(expected.bounds, abs=1e-6)
+
+
 def test_contact_region_hollow_box_has_hole() -> None:
     hollow = Mesh.box((80, 80, 80)) - Mesh.box((60, 60, 60))
     plan = plan_grid(

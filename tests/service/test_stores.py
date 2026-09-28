@@ -120,6 +120,16 @@ def test_model_store_evicts_lru_beyond_capacity() -> None:
     assert store.ids() == ["c", "d", "e", "f"]
 
 
+def test_model_store_put_returns_evicted_ids() -> None:
+    store = InMemoryModelStore(capacity=2)
+    assert store.put(_as_any(_model("a"))) == []
+    assert store.put(_as_any(_model("b"))) == []
+    assert store.put(_as_any(_model("a"))) == []  # re-put touches, evicts nothing
+    assert store.put(_as_any(_model("c"))) == ["b"]
+    assert store.put(_as_any(_model("d"))) == ["a"]
+    assert store.ids() == ["c", "d"]
+
+
 def test_model_store_get_touches_entry() -> None:
     store = InMemoryModelStore(capacity=4)
     for mid in "abcd":
