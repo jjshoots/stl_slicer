@@ -22,12 +22,14 @@ from stl_slicer.core.models import (
     SliceSpec,
     SliceStats,
 )
+from stl_slicer.io import exporters
 from stl_slicer.io.exporters import (
     mesh_to_glb,
     mesh_to_stl,
     piece_to_stl,
     pieces_to_glb,
     pieces_to_zip,
+    preview_mesh,
 )
 
 
@@ -185,3 +187,40 @@ def test_pieces_to_zip_uses_piece_to_stl(pieces: list[Piece]) -> None:
     with zipfile.ZipFile(BytesIO(pieces_to_zip(pieces, _result(pieces)))) as zf:
         for piece in pieces:
             assert zf.read(f"{piece.info.piece_id}.stl") == piece_to_stl(piece)
+
+
+# --- viewer preview decimation -------------------------------------------------------------------
+
+
+def test_preview_mesh_reduces_large_mesh(monkeypatch: pytest.MonkeyPatch) -> None:
+    sphere = Mesh.sphere(30, segments=128)
+    limit = sphere.triangle_count // 2
+    monkeypatch.setattr(exporters, "PREVIEW_MAX_TRIANGLES", limit)
+    preview = preview_mesh(sphere)
+    assert preview is not sphere
+    assert 0 < preview.triangle_count <= limit
+    assert preview.volume == pytest.approx(sphere.volume, rel=0.01)
+
+
+def test_preview_mesh_small_mesh_unchanged() -> None:
+    mesh = Mesh.sphere(30, segments=32)
+    assert mesh.triangle_count <= exporters.PREVIEW_MAX_TRIANGLES
+    assert preview_mesh(mesh) is mesh
+
+
+def test_glb_exports_decimated_but_stl_exact(monkeypatch: pytest.MonkeyPatch) -> None:
+    sphere = Mesh.sphere(30, segments=128)
+    limit = sphere.triangle_count // 2
+    monkeypatch.setattr(exporters, "PREVIEW_MAX_TRIANGLES", limit)
+
+    glb = _load_trimesh(mesh_to_glb(sphere), "glb")
+    assert len(glb.faces) <= limit
+
+    scene = trimesh.load(file_obj=BytesIO(pieces_to_glb([_make_piece(0, sphere)])), file_type="glb")
+    assert isinstance(scene, trimesh.Scene)
+    assert all(len(g.faces) <= limit for g in scene.geometry.values())
+
+    stl = _load_trimesh(mesh_to_stl(sphere), "stl")
+    assert len(stl.faces) == sphere.triangle_count
+    piece_stl = _load_trimesh(piece_to_stl(_make_piece(0, sphere)), "stl")
+    assert len(piece_stl.faces) == sphere.triangle_count
