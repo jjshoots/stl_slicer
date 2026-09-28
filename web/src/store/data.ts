@@ -5,10 +5,22 @@ const DEFAULT_PRINT_VOLUME: PrintVolume = { x: 220, y: 220, z: 250 }
 
 export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { kind: K }> } = {
   none: { kind: 'none' },
-  dowel: { kind: 'dowel', auto: true, diameter: 8, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 40 },
+  dowel: {
+    kind: 'dowel',
+    auto: true,
+    size_scale: 1,
+    depth_scale: 1,
+    diameter: 8,
+    depth: 6,
+    clearance: 0.15,
+    edge_margin: 3,
+    spacing: 40,
+  },
   dovetail: {
     kind: 'dovetail',
     auto: true,
+    size_scale: 1,
+    depth_scale: 1,
     neck_width: 8,
     head_width: 12,
     depth: 6,
@@ -19,6 +31,8 @@ export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { ki
   jigsaw: {
     kind: 'jigsaw',
     auto: true,
+    size_scale: 1,
+    depth_scale: 1,
     neck_width: 8,
     head_diameter: 14,
     depth: 18,

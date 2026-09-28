@@ -361,6 +361,16 @@ export interface components {
              */
             auto: boolean;
             /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
+            /**
              * Neck Width
              * @default 8
              */
@@ -406,6 +416,16 @@ export interface components {
              * @default false
              */
             auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
             /**
              * Diameter
              * @default 8
@@ -456,6 +476,16 @@ export interface components {
              * @default false
              */
             auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
             /**
              * Neck Width
              * @default 8

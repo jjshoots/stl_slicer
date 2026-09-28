@@ -188,6 +188,41 @@ interface AutoSizeToggleProps {
   onChange(value: JointSpec): void
 }
 
+interface ScaleSliderProps {
+  label: string
+  value: number
+  onChange(value: number): void
+}
+
+/** Multiplier slider for the auto-sizing coefficients; 1.00 is the sensible default. */
+function ScaleSlider({ label, value, onChange }: ScaleSliderProps): ReactElement {
+  const id = useId()
+  return (
+    <div className="field">
+      <div className="field-inline">
+        <label htmlFor={id}>
+          {label} ×{value.toFixed(2)}
+        </label>
+        {value !== 1 && (
+          <button type="button" className="btn-link" onClick={() => onChange(1)}>
+            reset
+          </button>
+        )}
+      </div>
+      <input
+        id={id}
+        type="range"
+        aria-label={label}
+        min={0.5}
+        max={2}
+        step={0.05}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </div>
+  )
+}
+
 function AutoSizeToggle({ value, resolved, onChange }: AutoSizeToggleProps): ReactElement {
   const id = useId()
   const auto = value.auto === true
@@ -206,7 +241,15 @@ function AutoSizeToggle({ value, resolved, onChange }: AutoSizeToggleProps): Rea
         />
         <label htmlFor={id}>Auto size</label>
       </div>
-      {auto && <p className="hint muted">{AUTO_HINT}</p>}
+      {auto && (
+        <>
+          <p className="hint muted">{AUTO_HINT}</p>
+          <div className="field-row">
+            <ScaleSlider label="Joint width" value={value.size_scale ?? 1} onChange={(size_scale) => onChange({ ...value, size_scale })} />
+            <ScaleSlider label="Joint depth" value={value.depth_scale ?? 1} onChange={(depth_scale) => onChange({ ...value, depth_scale })} />
+          </div>
+        </>
+      )}
     </>
   )
 }

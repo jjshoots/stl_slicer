@@ -857,6 +857,20 @@
             "title": "Auto",
             "default": false
           },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
+          },
           "neck_width": {
             "type": "number",
             "exclusiveMinimum": 0.0,
@@ -910,6 +924,20 @@
             "type": "boolean",
             "title": "Auto",
             "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
           },
           "diameter": {
             "type": "number",
@@ -971,6 +999,20 @@
             "type": "boolean",
             "title": "Auto",
             "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
           },
           "neck_width": {
             "type": "number",

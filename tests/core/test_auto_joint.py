@@ -141,3 +141,40 @@ def test_resolved_spec_validates_and_round_trips(
     assert got.auto is False
     assert kind.model_validate(got.model_dump()) == got
     assert resolve_joint(got, *env) is got
+
+
+def test_scale_one_is_identity_and_coefficients_are_echoed() -> None:
+    base = resolve_joint(JigsawJointSpec(auto=True), *MID)
+    scaled = resolve_joint(JigsawJointSpec(auto=True, size_scale=1.0, depth_scale=1.0), *MID)
+    assert scaled == base
+    assert base.size_scale == 1.0 and base.depth_scale == 1.0
+    got = resolve_joint(JigsawJointSpec(auto=True, size_scale=1.5, depth_scale=0.8), *MID)
+    assert (got.size_scale, got.depth_scale) == (1.5, 0.8)
+    assert got.auto is False
+
+
+def test_size_scale_scales_width_and_dependent_neck() -> None:
+    got = resolve_joint(JigsawJointSpec(auto=True, size_scale=2.0), *MID)
+    assert isinstance(got, JigsawJointSpec)
+    assert got.head_diameter == 48.0  # 24 * 2
+    assert got.neck_width == pytest.approx(26.4)
+    dowel = resolve_joint(DowelJointSpec(auto=True, size_scale=0.5), *MID)
+    assert isinstance(dowel, DowelJointSpec)
+    assert dowel.diameter == pytest.approx(3.5)  # min(0.35*20, 0.05*200) = 7 -> * 0.5
+
+
+def test_depth_scale_scales_depth_but_jigsaw_head_stays_past_plane() -> None:
+    got = resolve_joint(JigsawJointSpec(auto=True, depth_scale=0.5), *MID)
+    assert isinstance(got, JigsawJointSpec)
+    assert got.depth == got.head_diameter == 24.0  # 15.6 lifted back to the head diameter
+    deep = resolve_joint(JigsawJointSpec(auto=True, depth_scale=2.0), *MID)
+    assert isinstance(deep, JigsawJointSpec)
+    assert deep.depth == pytest.approx(62.4)
+    dt = resolve_joint(DovetailJointSpec(auto=True, depth_scale=0.5), *MID)
+    assert isinstance(dt, DovetailJointSpec)
+    assert dt.depth == pytest.approx(6.0)  # clamp(0.6*20, 4, 20) = 12 -> * 0.5
+
+
+def test_manual_specs_ignore_scales() -> None:
+    spec = DowelJointSpec(auto=False, size_scale=2.0)
+    assert resolve_joint(spec, *MID) is spec

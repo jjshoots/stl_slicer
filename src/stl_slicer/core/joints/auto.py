@@ -20,6 +20,11 @@ Rules (per kind):
   ``spacing = clamp(0.4 e, 20, 100)``;
   ``edge_margin = min(clamp(0.5 diameter + 2, 3, 10), 0.25 t)``; ``clearance = 0.15``.
 
+Two user coefficients, both default 1: ``size_scale`` multiplies the width quantity (head /
+diameter) after its clamp, and the dependent neck / margin follow; ``depth_scale`` multiplies the
+resulting depth. Validity is then re-established (jigsaw ``depth >= head``; dovetail
+``depth >= 1``). The coefficients are echoed on the resolved spec.
+
 A spec with ``auto=False`` or ``kind="none"`` is returned unchanged; otherwise the result is a spec
 of the same kind with ``auto=False`` and the numeric fields replaced.
 """
@@ -70,36 +75,43 @@ def resolve_joint(
     e = _typical_edge(bounds, print_volume, bed_margin)
     t = min(bounds.size)
 
+    ks, kd = spec.size_scale, spec.depth_scale
+    scales = {"size_scale": ks, "depth_scale": kd}
+
     if isinstance(spec, JigsawJointSpec):
-        head = round_mm(clamp(0.12 * e, 6, 40))
+        head = round_mm(clamp(0.12 * e, 6, 40) * ks)
+        depth = round_mm(1.3 * head * kd)
         return JigsawJointSpec(
             auto=False,
             head_diameter=head,
             neck_width=round_mm(0.55 * head),
-            depth=round_mm(1.3 * head),
+            depth=max(depth, head),  # validator: the whole head sits past the plane
             spacing=round_mm(clamp(0.5 * e, 25, 150)),
             edge_margin=_edge_margin(clamp(0.5 * head + 2, 3, 15), t),
             clearance=CLEARANCE,
+            **scales,
         )
     if isinstance(spec, DovetailJointSpec):
-        head = round_mm(clamp(0.10 * e, 6, 30))
+        head = round_mm(clamp(0.10 * e, 6, 30) * ks)
         return DovetailJointSpec(
             auto=False,
             head_width=head,
             neck_width=round_mm(0.65 * head),
-            depth=round_mm(clamp(0.6 * head, 4, 20)),
+            depth=max(round_mm(clamp(0.6 * head, 4, 20) * kd), 1.0),
             spacing=round_mm(clamp(0.5 * e, 25, 150)),
             edge_margin=_edge_margin(clamp(0.5 * head + 2, 3, 15), t),
             clearance=CLEARANCE,
+            **scales,
         )
     if isinstance(spec, DowelJointSpec):
-        diameter = round_mm(clamp(min(0.35 * t, 0.05 * e), 3, 12))
+        diameter = round_mm(clamp(min(0.35 * t, 0.05 * e), 3, 12) * ks)
         return DowelJointSpec(
             auto=False,
             diameter=diameter,
-            depth=round_mm(1.5 * diameter),
+            depth=round_mm(1.5 * diameter * kd),
             spacing=round_mm(clamp(0.4 * e, 20, 100)),
             edge_margin=_edge_margin(clamp(0.5 * diameter + 2, 3, 10), t),
             clearance=CLEARANCE,
+            **scales,
         )
     raise TypeError(f"unsupported joint spec: {type(spec).__name__}")  # pragma: no cover

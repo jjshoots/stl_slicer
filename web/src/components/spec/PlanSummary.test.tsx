@@ -46,7 +46,7 @@ describe('PlanSummary', () => {
   describe('resolved joint line', () => {
     const resolved: JigsawJointSpec = {
       kind: 'jigsaw',
-      auto: false,
+      auto: false, size_scale: 1, depth_scale: 1,
       neck_width: 16.2,
       head_diameter: 29.5,
       depth: 38.4,

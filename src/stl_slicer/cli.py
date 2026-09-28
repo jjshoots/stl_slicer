@@ -83,6 +83,10 @@ def joint_spec(kind: str, auto: bool = True) -> JointSpec:
 def describe_joint(joint: JointSpec) -> str:
     """One line with the joint kind and its numeric parameters, e.g. ``jigsaw: depth=18 ...``."""
     fields = joint.model_dump(exclude={"kind", "auto"})
+    # The scale coefficients are only informative when they are not the default.
+    for key in ("size_scale", "depth_scale"):
+        if fields.get(key) == 1:
+            del fields[key]
     params = " ".join(f"{k}={v:g}" for k, v in fields.items())
     return f"{joint.kind}: {params}" if params else joint.kind
 

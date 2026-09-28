@@ -33,7 +33,7 @@ describe('JointForm', () => {
   })
 
   it('renders exactly the dowel fields with prop values and the male side select', () => {
-    const value: DowelJointSpec = { kind: 'dowel', auto: false, diameter: 5, depth: 7, clearance: 0.2, edge_margin: 4, spacing: 30 }
+    const value: DowelJointSpec = { kind: 'dowel', auto: false, size_scale: 1, depth_scale: 1, diameter: 5, depth: 7, clearance: 0.2, edge_margin: 4, spacing: 30 }
     const { container } = render(
       <JointForm value={value} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />,
     )
@@ -101,6 +101,8 @@ describe('JointForm', () => {
     expect(onChange).toHaveBeenCalledWith({
       kind: 'jigsaw',
       auto: true,
+      size_scale: 1,
+      depth_scale: 1,
       neck_width: 8,
       head_diameter: 14,
       depth: 18,
@@ -151,6 +153,8 @@ describe('JointForm auto size', () => {
   const RESOLVED_JIGSAW: JigsawJointSpec = {
     kind: 'jigsaw',
     auto: false,
+    size_scale: 1,
+    depth_scale: 1,
     neck_width: 16.2,
     head_diameter: 29.5,
     depth: 38.4,
@@ -265,5 +269,30 @@ describe('JointForm auto size', () => {
     const jigsaw: JigsawJointSpec = { ...DEFAULT_JOINTS.jigsaw, neck_width: 14, depth: 7 }
     const b = render(<JointForm value={jigsaw} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
     expect(b.container.querySelectorAll('.error').length).toBe(0)
+  })
+})
+
+describe('JointForm auto scale sliders', () => {
+  const jigsaw: JigsawJointSpec = { ...DEFAULT_JOINTS.jigsaw }
+
+  it('renders width and depth sliders only while auto sizing is on', () => {
+    const { rerender } = render(<JointForm value={jigsaw} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(screen.getByLabelText('Joint width')).not.toBeNull()
+    expect(screen.getByLabelText('Joint depth')).not.toBeNull()
+    expect(screen.getByText('Joint width ×1.00')).not.toBeNull()
+    rerender(<JointForm value={{ ...jigsaw, auto: false }} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(screen.queryByLabelText('Joint width')).toBeNull()
+  })
+
+  it('moving a slider patches the coefficient and reset returns it to 1', () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<JointForm value={jigsaw} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    expect(screen.queryByText('reset')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Joint depth'), { target: { value: '1.5' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...jigsaw, depth_scale: 1.5 })
+    rerender(<JointForm value={{ ...jigsaw, depth_scale: 1.5 }} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    expect(screen.getByText('Joint depth ×1.50')).not.toBeNull()
+    fireEvent.click(screen.getByText('reset'))
+    expect(onChange).toHaveBeenLastCalledWith({ ...jigsaw, depth_scale: 1 })
   })
 })

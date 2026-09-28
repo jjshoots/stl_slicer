@@ -55,7 +55,7 @@ describe('format', () => {
     expect(
       formatJointSummary({
         kind: 'jigsaw',
-        auto: false,
+        auto: false, size_scale: 1, depth_scale: 1,
         neck_width: 16.2,
         head_diameter: 29.5,
         depth: 38.4,
@@ -65,9 +65,9 @@ describe('format', () => {
       }),
     ).toBe('jigsaw · head 29.5 mm · neck 16.2 mm · depth 38.4 mm · spacing 123 mm')
     expect(
-      formatJointSummary({ kind: 'dovetail', auto: false, neck_width: 8, head_width: 12, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 60 }),
+      formatJointSummary({ kind: 'dovetail', auto: false, size_scale: 1, depth_scale: 1, neck_width: 8, head_width: 12, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 60 }),
     ).toBe('dovetail · head 12 mm · neck 8 mm · depth 6 mm · spacing 60 mm')
-    expect(formatJointSummary({ kind: 'dowel', auto: false, diameter: 8.25, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 40 })).toBe(
+    expect(formatJointSummary({ kind: 'dowel', auto: false, size_scale: 1, depth_scale: 1, diameter: 8.25, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 40 })).toBe(
       'dowel · diameter 8.3 mm · depth 6 mm · spacing 40 mm',
     )
     expect(formatJointSummary({ kind: 'none' })).toBe('none')
