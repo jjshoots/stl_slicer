@@ -14,10 +14,12 @@ from typing import Protocol
 
 from stl_slicer.core.errors import Cancelled
 from stl_slicer.core.geometry import Joint, LoadedModel, Mesh, Piece, Region2D, SliceOutput
+from stl_slicer.core.joints.auto import resolve_joint
 from stl_slicer.core.joints.base import ProfileStripJoint
 from stl_slicer.core.joints.registry import get_generator, spec_clearance, spec_depth
 from stl_slicer.core.models import (
     Axis,
+    Bounds,
     Cell,
     CellIndex,
     CellLimits,
@@ -31,7 +33,14 @@ from stl_slicer.core.models import (
 from stl_slicer.core.planning import plan_grid
 from stl_slicer.core.slicing import carve, check_pieces, contact_regions, joint_cells, male_female
 
-__all__ = ["CancelToken", "ProgressSink", "cell_limits", "slice_model"]
+__all__ = [
+    "CancelToken",
+    "ProgressSink",
+    "cell_limits",
+    "plan_model",
+    "resolve_spec",
+    "slice_model",
+]
 
 
 class ProgressSink(Protocol):
@@ -76,6 +85,21 @@ def cell_limits(spec: SliceSpec) -> CellLimits:
         bed.z - depth - 2 * margin,
     )
     return CellLimits(max_cell=max_cell, min_cell=depth + clearance + 1.0)
+
+
+def resolve_spec(spec: SliceSpec, bounds: Bounds) -> SliceSpec:
+    """`spec` with an auto joint replaced by its concrete sizing (docs/00_design.md §4.6); a spec
+    whose joint is already concrete is returned as is."""
+    resolved = resolve_joint(spec.joint, bounds, spec.print_volume, spec.partition.bed_margin)
+    return spec if resolved is spec.joint else spec.model_copy(update={"joint": resolved})
+
+
+def plan_model(bounds: Bounds, spec: SliceSpec) -> CutPlan:
+    """Plan the grid for `bounds` under `spec` (whose joint must already be resolved, see
+    `resolve_spec`) and record that joint on the plan as `resolved_joint`."""
+    plan = plan_grid(bounds, cell_limits(spec), spec.partition.cuts, axes=spec.partition.axes)
+    # Fresh from plan_grid: no `cells_by_id` cache exists yet, so the copy carries none.
+    return plan.model_copy(update={"resolved_joint": spec.joint})
 
 
 def _cell_occupied(mesh: Mesh, cell: Cell) -> bool:
@@ -186,11 +210,10 @@ def slice_model(
 
     started = time.perf_counter()
     warnings: list[SliceWarning] = []
+    spec = resolve_spec(spec, model.mesh.bounds)
 
     report(0.0, "planning")
-    plan = plan_grid(
-        model.mesh.bounds, cell_limits(spec), spec.partition.cuts, axes=spec.partition.axes
-    )
+    plan = plan_model(model.mesh.bounds, spec)
     warnings.extend(plan.warnings)
     check()
 

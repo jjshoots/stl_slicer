@@ -11,7 +11,7 @@ import trimesh
 from typer.testing import CliRunner
 
 from stl_slicer.cli import app
-from stl_slicer.core.models import SliceResult
+from stl_slicer.core.models import DowelJointSpec, JigsawJointSpec, SliceResult
 
 SPHERE = Path(__file__).parents[1] / "fixtures" / "sphere.stl"
 runner = CliRunner()
@@ -69,3 +69,29 @@ def test_slice_sphere_dovetail(tmp_path: Path) -> None:
     res = runner.invoke(app, args)
     assert res.exit_code == 0, res.output
     assert (tmp_path / "manifest.json").is_file()
+
+
+@needs_pipeline
+def test_slice_joint_is_auto_sized_by_default(tmp_path: Path) -> None:
+    args = ["slice", str(SPHERE), "--bed", "40x40x40", "--joint", "jigsaw", "-o", str(tmp_path)]
+    res = runner.invoke(app, args)
+    assert res.exit_code == 0, res.output
+    result = SliceResult.model_validate_json((tmp_path / "manifest.json").read_text())
+    joint = result.spec.joint
+    assert isinstance(joint, JigsawJointSpec)
+    assert joint.auto is False
+    assert joint != JigsawJointSpec()  # sized from the model and bed, not the kind's defaults
+    assert result.plan.resolved_joint == joint
+    assert "joint (auto) jigsaw: " in res.output
+    assert f"head_diameter={joint.head_diameter:g}" in res.output
+
+
+@needs_pipeline
+def test_slice_manual_uses_kind_defaults(tmp_path: Path) -> None:
+    args = ["slice", str(SPHERE), "--bed", "40x40x40", "--joint", "dowel", "--manual"]
+    res = runner.invoke(app, [*args, "-o", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    result = SliceResult.model_validate_json((tmp_path / "manifest.json").read_text())
+    assert result.spec.joint == DowelJointSpec()
+    assert result.plan.resolved_joint == DowelJointSpec()
+    assert "joint (manual) dowel: " in res.output

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { CutPlan, Job, MeshAsset, SliceResult } from '../api/types'
-import { DEFAULT_SPEC, useDataStore } from './data'
+import { DEFAULT_JOINTS, DEFAULT_SPEC, useDataStore } from './data'
 
 const bounds = { min: [0, 0, 0], max: [10, 10, 10] } as CutPlan['bounds']
 
@@ -102,5 +102,12 @@ describe('data store', () => {
     expect(s.uploadError).toBeNull()
     expect(s.uploading).toBe(false)
     expect(s.spec.male_side).toBe('upper')
+  })
+
+  it('sized joint defaults are auto-sized', () => {
+    expect(DEFAULT_JOINTS.dowel.auto).toBe(true)
+    expect(DEFAULT_JOINTS.dovetail.auto).toBe(true)
+    expect(DEFAULT_JOINTS.jigsaw.auto).toBe(true)
+    expect(DEFAULT_JOINTS.none).toEqual({ kind: 'none' })
   })
 })

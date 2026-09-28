@@ -1,11 +1,13 @@
 import type { ReactElement } from 'react'
-import type { Axis, Bounds, CutPlan, MeshAsset, SliceWarning, Vec3 } from '../../api/types'
-import { formatLength, formatSize, formatVolume, humanizeCode } from '../../lib/format'
+import type { Axis, Bounds, CutPlan, JointSpec, MeshAsset, SliceWarning, Vec3 } from '../../api/types'
+import { formatJointSummary, formatLength, formatSize, formatVolume, humanizeCode } from '../../lib/format'
 
 export interface PlanSummaryProps {
   model: MeshAsset | null
   plan: CutPlan | null
   error: string | null
+  /** The spec's current joint; the resolved line shows only while it is auto-sized. */
+  joint?: JointSpec
 }
 
 const AXES: Axis[] = ['x', 'y', 'z']
@@ -34,7 +36,9 @@ function Warnings({ items }: { items: SliceWarning[] }): ReactElement | null {
   )
 }
 
-export function PlanSummary({ model, plan, error }: PlanSummaryProps): ReactElement {
+export function PlanSummary({ model, plan, error, joint }: PlanSummaryProps): ReactElement {
+  const autoJoint = joint !== undefined && joint.kind !== 'none' && joint.auto === true
+  const resolved = plan?.resolved_joint ?? null
   if (model === null) return <p className="muted">Upload a model to see the cut plan.</p>
   return (
     <div>
@@ -59,6 +63,12 @@ export function PlanSummary({ model, plan, error }: PlanSummaryProps): ReactElem
             ))}
             <dt>interfaces</dt>
             <dd>{plan.interfaces.length}</dd>
+            {autoJoint && resolved && (
+              <>
+                <dt>joint</dt>
+                <dd>{formatJointSummary(resolved)}</dd>
+              </>
+            )}
           </dl>
           <Warnings items={plan.warnings ?? []} />
         </>

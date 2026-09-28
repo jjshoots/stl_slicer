@@ -340,6 +340,8 @@ export interface components {
             interfaces: components["schemas"]["CutInterface"][];
             /** Warnings */
             warnings?: components["schemas"]["SliceWarning"][];
+            /** Resolved Joint */
+            resolved_joint?: (components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"]) | null;
         };
         /**
          * DovetailJointSpec
@@ -353,6 +355,11 @@ export interface components {
              * @enum {string}
              */
             kind: "dovetail";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
             /**
              * Neck Width
              * @default 8
@@ -394,6 +401,11 @@ export interface components {
              * @enum {string}
              */
             kind: "dowel";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
             /**
              * Diameter
              * @default 8
@@ -439,6 +451,11 @@ export interface components {
              * @enum {string}
              */
             kind: "jigsaw";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
             /**
              * Neck Width
              * @default 8

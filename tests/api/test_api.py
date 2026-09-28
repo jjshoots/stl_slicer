@@ -18,6 +18,7 @@ from stl_slicer.core.models import (
     Bounds,
     CellLimits,
     CutPlan,
+    JigsawJointSpec,
     Job,
     JobStatus,
     MeshAsset,
@@ -464,3 +465,44 @@ def test_no_missing_dist_warning_when_web_disabled(
     with caplog.at_level(logging.WARNING, logger="stl_slicer.api.app"):
         create_app(models, FakeArtifacts(), FakeRunner(models), False, web_dist=tmp_path / "x")
     assert not [r for r in caplog.records if r.name == "stl_slicer.api.app"]
+
+
+# --- /plan with the real planner: auto joint resolution ------------------------------------------
+
+
+@pytest.fixture
+def real_planner_client() -> TestClient:
+    models = FakeModels()
+    app = create_app(models, FakeArtifacts(), FakeRunner(models), False, loader=fake_loader)
+    return TestClient(app)
+
+
+def test_plan_resolves_auto_joint(real_planner_client: TestClient) -> None:
+    _upload(real_planner_client)
+    body = {**SPEC, "joint": {"kind": "jigsaw", "auto": True}}
+    r = real_planner_client.post("/api/models/m1/plan", json=body)
+    assert r.status_code == 200, r.text
+    plan = CutPlan.model_validate(r.json())
+    resolved = plan.resolved_joint
+    assert isinstance(resolved, JigsawJointSpec)
+    assert resolved.auto is False
+    # BOUNDS is a 10 mm cube: e = 10 -> head clamps to 6
+    assert resolved.head_diameter == 6.0
+    assert plan.limits.max_cell[0] == pytest.approx(100 - resolved.depth - 4)
+    assert r.json()["resolved_joint"]["auto"] is False
+
+
+def test_plan_manual_joint_is_returned_as_resolved(real_planner_client: TestClient) -> None:
+    _upload(real_planner_client)
+    joint = {"kind": "dowel", "diameter": 2.0, "depth": 3.0}
+    r = real_planner_client.post("/api/models/m1/plan", json={**SPEC, "joint": joint})
+    assert r.status_code == 200, r.text
+    plan = CutPlan.model_validate(r.json())
+    assert plan.resolved_joint == SliceSpec.model_validate({**SPEC, "joint": joint}).joint
+
+
+def test_plan_no_joint_has_none_resolved(real_planner_client: TestClient) -> None:
+    _upload(real_planner_client)
+    r = real_planner_client.post("/api/models/m1/plan", json=SPEC)
+    assert r.status_code == 200, r.text
+    assert r.json()["resolved_joint"] == {"kind": "none"}

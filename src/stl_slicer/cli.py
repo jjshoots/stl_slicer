@@ -63,17 +63,28 @@ def parse_bed(bed: str) -> PrintVolume:
         raise typer.BadParameter(f"bed dimensions must be positive numbers, got {bed!r}") from exc
 
 
-def joint_spec(kind: str) -> JointSpec:
-    """Default joint spec for `kind` (none, dowel, dovetail or jigsaw).
+def joint_spec(kind: str, auto: bool = True) -> JointSpec:
+    """Joint spec for `kind` (none, dowel, dovetail or jigsaw): auto-sized from the model and bed
+    by default, or the kind's built-in defaults when `auto` is false.
 
     Raises:
         typer.BadParameter: unknown kind.
     """
     try:
-        return JOINT_KINDS[kind.lower()]()
+        cls = JOINT_KINDS[kind.lower()]
     except KeyError:
         choices = "|".join(JOINT_KINDS)
         raise typer.BadParameter(f"joint must be one of {choices}, got {kind!r}") from None
+    if cls is NoJointSpec:
+        return NoJointSpec()
+    return cls(auto=auto)
+
+
+def describe_joint(joint: JointSpec) -> str:
+    """One line with the joint kind and its numeric parameters, e.g. ``jigsaw: depth=18 ...``."""
+    fields = joint.model_dump(exclude={"kind", "auto"})
+    params = " ".join(f"{k}={v:g}" for k, v in fields.items())
+    return f"{joint.kind}: {params}" if params else joint.kind
 
 
 @app.command()
@@ -95,13 +106,22 @@ def serve(
 def slice_cmd(
     file: Annotated[Path, typer.Argument(help="Mesh file (STL, OBJ, PLY, 3MF, ...).")],
     bed: Annotated[str, typer.Option(help="Print volume in mm, AxBxC.")] = "220x220x250",
-    joint: Annotated[str, typer.Option(help="Joint kind: none|dowel|dovetail|jigsaw.")] = "none",
+    joint: Annotated[
+        str,
+        typer.Option(help="Joint kind: none|dowel|dovetail|jigsaw (sized automatically)."),
+    ] = "none",
+    manual: Annotated[
+        bool,
+        typer.Option(
+            "--manual", help="Use the joint kind's built-in sizes instead of auto sizing."
+        ),
+    ] = False,
     scale: Annotated[float, typer.Option(help="Uniform scale applied on load.")] = 1.0,
     out: Annotated[Path, typer.Option("-o", "--out", help="Output directory.")] = Path("out"),
 ) -> None:
     """Slice FILE into bed-sized pieces; write one STL per piece plus manifest.json."""
     volume = parse_bed(bed)
-    spec = SliceSpec(print_volume=volume, joint=joint_spec(joint))
+    spec = SliceSpec(print_volume=volume, joint=joint_spec(joint, auto=not manual))
     if not file.is_file():
         raise typer.BadParameter(f"no such file: {file}", param_hint="FILE")
 
@@ -123,6 +143,9 @@ def slice_cmd(
     for piece in output.pieces:
         (out / f"{piece.info.piece_id}.stl").write_bytes(exporters.piece_to_stl(piece))
     result = output.result
+    if result.spec.joint.kind != "none":
+        sizing = "manual" if manual else "auto"
+        typer.echo(f"joint ({sizing}) {describe_joint(result.spec.joint)}", err=True)
     (out / "manifest.json").write_text(result.model_dump_json(indent=2))
 
     for warning in [*model.asset.warnings, *result.warnings]:

@@ -48,12 +48,13 @@ export function SpecPanel({ presets, uploading, uploadError, onUpload }: SpecPan
         <JointForm
           value={spec.joint}
           maleSide={spec.male_side}
+          resolvedJoint={plan?.resolved_joint ?? null}
           onChange={(joint: JointSpec) => patchSpec({ joint })}
           onMaleSideChange={(male_side: MaleSide) => patchSpec({ male_side })}
         />
       </Section>
       <Section title="Plan">
-        <PlanSummary model={model} plan={plan} error={planError} />
+        <PlanSummary model={model} plan={plan} error={planError} joint={spec.joint} />
       </Section>
     </>
   )

@@ -5,14 +5,31 @@ import { DEFAULT_JOINTS } from '../../store/data'
 
 interface JointFieldsProps<S extends JointSpec> {
   value: S
+  /** True while auto sizing is on: inputs are disabled and inline validation is suppressed. */
+  disabled?: boolean
   onChange(value: S): void
 }
 
 export interface JointFormProps {
   value: JointSpec
   maleSide: MaleSide
+  /** The concrete spec the current plan was sized for (`plan.resolved_joint`); shown while auto sizing is on. */
+  resolvedJoint?: JointSpec | null
   onChange(value: JointSpec): void
   onMaleSideChange(side: MaleSide): void
+}
+
+export const AUTO_HINT = 'Sized from the model and bed. Turn off Auto size to edit.'
+
+type SizedJointSpec = Exclude<JointSpec, { kind: 'none' }>
+
+function isSized(v: JointSpec): v is SizedJointSpec {
+  return v.kind !== 'none'
+}
+
+/** The resolved joint, if it exists and matches the spec's kind; otherwise null. */
+function matchingResolved<S extends SizedJointSpec>(value: S, resolved: JointSpec | null | undefined): S | null {
+  return resolved && resolved.kind === value.kind ? (resolved as S) : null
 }
 
 interface NumberFieldProps {
@@ -22,11 +39,12 @@ interface NumberFieldProps {
   step?: number
   /** Display unit appended to the visible label; every joint dimension is in millimetres. */
   unit?: string
+  disabled?: boolean
   onChange(value: number): void
 }
 
 /** Number input that keeps intermediate text locally and commits only finite numbers. */
-function NumberField({ label, value, min, step, unit = 'mm', onChange }: NumberFieldProps): ReactElement {
+function NumberField({ label, value, min, step, unit = 'mm', disabled, onChange }: NumberFieldProps): ReactElement {
   const id = useId()
   const [text, setText] = useState(String(value))
   const [prev, setPrev] = useState(value)
@@ -45,6 +63,7 @@ function NumberField({ label, value, min, step, unit = 'mm', onChange }: NumberF
         aria-label={label}
         min={min}
         step={step}
+        disabled={disabled}
         value={text}
         onChange={(e) => {
           const next = e.target.value
@@ -64,48 +83,48 @@ function NoJointFields(_props: JointFieldsProps<Extract<JointSpec, { kind: 'none
   return <p className="hint muted">Pieces are cut flat; no registration features.</p>
 }
 
-function DowelFields({ value, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'dowel' }>>): ReactElement {
+function DowelFields({ value, disabled, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'dowel' }>>): ReactElement {
   return (
     <>
       <div className="field-row">
-        <NumberField label="Diameter" value={value.diameter} min={0} step={0.5} onChange={(diameter) => onChange({ ...value, diameter })} />
-        <NumberField label="Depth" value={value.depth} min={0} step={0.5} onChange={(depth) => onChange({ ...value, depth })} />
+        <NumberField label="Diameter" value={value.diameter} min={0} step={0.5} disabled={disabled} onChange={(diameter) => onChange({ ...value, diameter })} />
+        <NumberField label="Depth" value={value.depth} min={0} step={0.5} disabled={disabled} onChange={(depth) => onChange({ ...value, depth })} />
       </div>
       <div className="field-row">
-        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} onChange={(clearance) => onChange({ ...value, clearance })} />
-        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
-        <NumberField label="Spacing" value={value.spacing} min={0} step={1} onChange={(spacing) => onChange({ ...value, spacing })} />
+        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} disabled={disabled} onChange={(clearance) => onChange({ ...value, clearance })} />
+        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} disabled={disabled} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
+        <NumberField label="Spacing" value={value.spacing} min={0} step={1} disabled={disabled} onChange={(spacing) => onChange({ ...value, spacing })} />
       </div>
     </>
   )
 }
 
-function DovetailFields({ value, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'dovetail' }>>): ReactElement {
+function DovetailFields({ value, disabled, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'dovetail' }>>): ReactElement {
   return (
     <>
       <div className="field-row">
-        <NumberField label="Neck width" value={value.neck_width} min={0} step={0.5} onChange={(neck_width) => onChange({ ...value, neck_width })} />
-        <NumberField label="Head width" value={value.head_width} min={0} step={0.5} onChange={(head_width) => onChange({ ...value, head_width })} />
-        <NumberField label="Depth" value={value.depth} min={0} step={0.5} onChange={(depth) => onChange({ ...value, depth })} />
+        <NumberField label="Neck width" value={value.neck_width} min={0} step={0.5} disabled={disabled} onChange={(neck_width) => onChange({ ...value, neck_width })} />
+        <NumberField label="Head width" value={value.head_width} min={0} step={0.5} disabled={disabled} onChange={(head_width) => onChange({ ...value, head_width })} />
+        <NumberField label="Depth" value={value.depth} min={0} step={0.5} disabled={disabled} onChange={(depth) => onChange({ ...value, depth })} />
       </div>
-      {value.head_width <= value.neck_width && <p className="error">Head width must exceed neck width</p>}
+      {!disabled && value.head_width <= value.neck_width && <p className="error">Head width must exceed neck width</p>}
       <div className="field-row">
-        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} onChange={(clearance) => onChange({ ...value, clearance })} />
-        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
-        <NumberField label="Spacing" value={value.spacing} min={0} step={1} onChange={(spacing) => onChange({ ...value, spacing })} />
+        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} disabled={disabled} onChange={(clearance) => onChange({ ...value, clearance })} />
+        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} disabled={disabled} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
+        <NumberField label="Spacing" value={value.spacing} min={0} step={1} disabled={disabled} onChange={(spacing) => onChange({ ...value, spacing })} />
       </div>
     </>
   )
 }
 
-function JigsawFields({ value, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'jigsaw' }>>): ReactElement {
-  const errors = jigsawErrors(value)
+function JigsawFields({ value, disabled, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'jigsaw' }>>): ReactElement {
+  const errors = disabled ? [] : jigsawErrors(value)
   return (
     <>
       <div className="field-row">
-        <NumberField label="Neck width" value={value.neck_width} min={0} step={0.5} onChange={(neck_width) => onChange({ ...value, neck_width })} />
-        <NumberField label="Head diameter" value={value.head_diameter} min={0} step={0.5} onChange={(head_diameter) => onChange({ ...value, head_diameter })} />
-        <NumberField label="Depth" value={value.depth} min={0} step={0.5} onChange={(depth) => onChange({ ...value, depth })} />
+        <NumberField label="Neck width" value={value.neck_width} min={0} step={0.5} disabled={disabled} onChange={(neck_width) => onChange({ ...value, neck_width })} />
+        <NumberField label="Head diameter" value={value.head_diameter} min={0} step={0.5} disabled={disabled} onChange={(head_diameter) => onChange({ ...value, head_diameter })} />
+        <NumberField label="Depth" value={value.depth} min={0} step={0.5} disabled={disabled} onChange={(depth) => onChange({ ...value, depth })} />
       </div>
       {errors.map((e) => (
         <p key={e} className="error">
@@ -113,9 +132,9 @@ function JigsawFields({ value, onChange }: JointFieldsProps<Extract<JointSpec, {
         </p>
       ))}
       <div className="field-row">
-        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} onChange={(clearance) => onChange({ ...value, clearance })} />
-        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
-        <NumberField label="Spacing" value={value.spacing} min={0} step={1} onChange={(spacing) => onChange({ ...value, spacing })} />
+        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} disabled={disabled} onChange={(clearance) => onChange({ ...value, clearance })} />
+        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} disabled={disabled} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
+        <NumberField label="Spacing" value={value.spacing} min={0} step={1} disabled={disabled} onChange={(spacing) => onChange({ ...value, spacing })} />
       </div>
       <p className="hint muted">Puzzle-piece knobs in the cut plane; pieces drop in along the slide axis (Z for X/Y cuts)</p>
     </>
@@ -153,14 +172,52 @@ function isJointKind(s: string): s is JointKind {
   return (KINDS as string[]).includes(s)
 }
 
-function renderFields<K extends JointKind>(kind: K, value: JointOf<K>, onChange: (v: JointOf<K>) => void): ReactElement {
+function renderFields<K extends JointKind>(
+  kind: K,
+  value: JointOf<K>,
+  disabled: boolean,
+  onChange: (v: JointOf<K>) => void,
+): ReactElement {
   const Fields: ComponentType<JointFieldsProps<JointOf<K>>> = JOINT_FORMS[kind]
-  return <Fields key={kind} value={value} onChange={onChange} />
+  return <Fields key={kind} value={value} disabled={disabled} onChange={onChange} />
 }
 
-export function JointForm({ value, maleSide, onChange, onMaleSideChange }: JointFormProps): ReactElement {
+interface AutoSizeToggleProps {
+  value: SizedJointSpec
+  resolved: SizedJointSpec | null
+  onChange(value: JointSpec): void
+}
+
+function AutoSizeToggle({ value, resolved, onChange }: AutoSizeToggleProps): ReactElement {
+  const id = useId()
+  const auto = value.auto === true
+  return (
+    <>
+      <div className="field-inline">
+        <input
+          id={id}
+          type="checkbox"
+          checked={auto}
+          onChange={(e) => {
+            if (e.target.checked) onChange({ ...value, auto: true })
+            // Seed the numbers from the auto result so the user tweaks from what the plan used.
+            else onChange({ ...value, ...(resolved ?? {}), auto: false } as JointSpec)
+          }}
+        />
+        <label htmlFor={id}>Auto size</label>
+      </div>
+      {auto && <p className="hint muted">{AUTO_HINT}</p>}
+    </>
+  )
+}
+
+export function JointForm({ value, maleSide, resolvedJoint, onChange, onMaleSideChange }: JointFormProps): ReactElement {
   const kindId = useId()
   const sideId = useId()
+  const auto = isSized(value) && value.auto === true
+  const resolved = isSized(value) ? matchingResolved(value, resolvedJoint) : null
+  // While auto is on the numbers shown are the plan's resolved ones (or the spec's own until a plan exists).
+  const shown: JointSpec = auto && resolved ? { ...value, ...resolved, auto: true } : value
   return (
     <div>
       <div className="field">
@@ -181,7 +238,8 @@ export function JointForm({ value, maleSide, onChange, onMaleSideChange }: Joint
           ))}
         </select>
       </div>
-      {renderFields(value.kind, value, onChange)}
+      {isSized(value) && <AutoSizeToggle value={value} resolved={resolved} onChange={onChange} />}
+      {renderFields(shown.kind, shown, auto, onChange)}
       {value.kind !== 'none' && (
         <div className="field">
           <label htmlFor={sideId}>Male side</label>

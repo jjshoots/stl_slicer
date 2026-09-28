@@ -11,6 +11,7 @@ from stl_slicer.core.geometry import LoadedModel, Mesh
 from stl_slicer.core.models import (
     Axis,
     AxisCuts,
+    Bounds,
     DovetailJointSpec,
     DowelJointSpec,
     JigsawJointSpec,
@@ -433,3 +434,61 @@ def test_jigsaw_flat_puzzle_end_to_end() -> None:
     assert {j.interface_id for j in result.joints} == {i.id for i in result.plan.interfaces}
     assert result.warnings == []
     _assert_consistent(result)
+
+
+# --- auto joint sizing ---------------------------------------------------------------------------
+
+
+def test_auto_jigsaw_slab_resolves_and_fits() -> None:
+    slab = _box((0, 0, 0), (300, 300, 15))
+    result = slice_model(make_model(slab), _spec(250.0, JigsawJointSpec(auto=True))).result
+    _assert_consistent(result)
+    joint = result.spec.joint
+    assert isinstance(joint, JigsawJointSpec)
+    assert joint.auto is False
+    assert joint.head_diameter == 29.5  # clamp(0.12 * 246, 6, 40)
+    assert joint.neck_width == 16.2
+    assert joint.edge_margin == 3.8  # capped at 0.25 * 15: the rule's 15 mm would empty the slab
+    assert result.plan.resolved_joint == joint
+    assert result.plan.limits == cell_limits(result.spec)
+    assert result.joints
+    assert result.stats.max_overlap_volume == 0.0
+    assert all(p.fits_bed for p in result.pieces)
+    assert WarningCode.PIECE_OVERSIZE not in _codes(result)
+
+
+def test_auto_dowel_thin_model_clamps_diameter() -> None:
+    thin = _box((0, 0, 0), (300, 100, 4))
+    result = slice_model(make_model(thin), _spec(250.0, DowelJointSpec(auto=True))).result
+    _assert_consistent(result)
+    joint = result.spec.joint
+    assert isinstance(joint, DowelJointSpec)
+    assert joint.auto is False
+    assert joint.diameter == 3.0  # min(0.35 * 4, 0.05 * 246) = 1.4 -> clamped up
+    assert joint.depth == 4.5
+    assert joint.edge_margin == 1.0  # 0.25 * 4
+    assert result.plan.resolved_joint == joint
+    # A 3 mm pin cannot sit inside a 4 mm sheet with any margin: every interface reports it.
+    assert result.joints == []
+    assert WarningCode.NO_CONTACT_FOR_JOINT in _codes(result)
+
+
+def test_manual_joint_is_recorded_as_resolved_joint() -> None:
+    joint = DowelJointSpec(diameter=4.0, depth=6.0)
+    result = slice_model(make_model(_box((0, 0, 0), (100, 40, 20))), _spec(60.0, joint)).result
+    assert result.spec.joint == joint
+    assert result.plan.resolved_joint == joint
+
+
+def test_plan_model_copy_keeps_cell_lookup_working() -> None:
+    from stl_slicer.core.pipeline import plan_model, resolve_spec
+
+    bounds = Bounds(min=(0, 0, 0), max=(300, 300, 15))
+    spec = resolve_spec(_spec(250.0, JigsawJointSpec(auto=True)), bounds)
+    plan = plan_model(bounds, spec)
+    assert plan.resolved_joint == spec.joint
+    assert "cells_by_id" not in plan.__dict__
+    for cell in plan.cells:
+        assert plan.cell(cell.index) == cell
+    copy = plan.model_copy(update={"resolved_joint": None})
+    assert copy.cell(plan.cells[-1].index) == plan.cells[-1]

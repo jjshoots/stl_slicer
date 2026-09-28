@@ -799,6 +799,39 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "resolved_joint": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/NoJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DowelJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DovetailJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JigsawJointSpec"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "dovetail": "#/components/schemas/DovetailJointSpec",
+                    "dowel": "#/components/schemas/DowelJointSpec",
+                    "jigsaw": "#/components/schemas/JigsawJointSpec",
+                    "none": "#/components/schemas/NoJointSpec"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Joint"
           }
         },
         "type": "object",
@@ -818,6 +851,11 @@
             "const": "dovetail",
             "title": "Kind",
             "default": "dovetail"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
           },
           "neck_width": {
             "type": "number",
@@ -867,6 +905,11 @@
             "const": "dowel",
             "title": "Kind",
             "default": "dowel"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
           },
           "diameter": {
             "type": "number",
@@ -923,6 +966,11 @@
             "const": "jigsaw",
             "title": "Kind",
             "default": "jigsaw"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
           },
           "neck_width": {
             "type": "number",

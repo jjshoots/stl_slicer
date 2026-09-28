@@ -1,5 +1,10 @@
 # 00 — Design: stl-slicer
 
+v5 — auto joint sizing (2026-09-28): `JointSpec.auto` derives the joint's numeric fields from the
+model and the bed (§4.6, `core/joints/auto.py`); the pipeline and `/plan` resolve the joint first,
+run everything on the resolved spec, and record it in `CutPlan.resolved_joint` and
+`SliceResult.spec.joint`. The CLI sizes joints automatically unless `--manual` is given.
+
 v4 — slide-axis rule (2026-09-28): strip joints (dovetail, jigsaw) extrude along the in-plane
 axis with the smaller extent and draw their profile across the larger one (ties → v), so flat
 models assemble like a flat puzzle and `ASSEMBLY_CONFLICT` asks the generator for the slide axis.
@@ -165,6 +170,33 @@ order is the user's problem, but they are told).
 Derives `CellLimits`; calls the above in order; checks `cancel` between cuts (raises `Cancelled`);
 reports `planning → contacts → joints → cutting i/n → checking`; collects warnings; computes
 `fits_bed`, `print_offset` per piece.
+
+### 4.6 Auto joint sizing (`core/joints/auto.py`, pure; v5)
+
+`resolve_joint(spec, bounds, print_volume, bed_margin) -> JointSpec`. If `spec.auto` is false or
+`kind == "none"`, returns `spec` unchanged; otherwise returns a spec of the same kind with
+`auto=False` and every numeric field derived from two quantities:
+
+- `t` = the model's smallest extent (its thickness);
+- `e` = the typical piece edge = `min(smallest bed dimension − 2·bed_margin, largest model extent)`.
+
+Every length is rounded to 0.1 mm; `clamp(x, lo, hi)` saturates. `clearance = 0.15` for all kinds.
+Because the placement region is inset by `edge_margin` on every side (§4.2.1), each kind's
+`edge_margin` is additionally capped at `0.25·t`: a margin of `t/2` or more would empty every
+contact region of a thin model (a 15 mm slab with the uncapped 15 mm jigsaw margin gets no joints).
+
+| kind | rules |
+|---|---|
+| jigsaw | `head_diameter = clamp(0.12e, 6, 40)`; `neck_width = 0.55·head`; `depth = 1.3·head` (validator needs `depth ≥ head`); `spacing = clamp(0.5e, 25, 150)`; `edge_margin = min(clamp(0.5·head + 2, 3, 15), 0.25·t)` |
+| dovetail | `head_width = clamp(0.10e, 6, 30)`; `neck_width = 0.65·head`; `depth = clamp(0.6·head, 4, 20)`; spacing and edge_margin as jigsaw (using `head_width`) |
+| dowel | `diameter = clamp(min(0.35t, 0.05e), 3, 12)`; `depth = 1.5·diameter`; `spacing = clamp(0.4e, 20, 100)`; `edge_margin = min(clamp(0.5·diameter + 2, 3, 10), 0.25·t)` |
+
+Where it applies: `pipeline.resolve_spec(spec, bounds)` runs first in `slice_model` and in the
+`/plan` planner; `cell_limits`, the generators and `ASSEMBLY_CONFLICT` all see the resolved spec.
+`pipeline.plan_model` records it as `CutPlan.resolved_joint`, and `SliceResult.spec.joint` is the
+resolved spec (the caller's `auto=True` request is not otherwise stored). For a manual spec
+`resolved_joint` equals the input joint. `resolved_joint` is set on the fresh plan from
+`plan_grid`, before its `cells_by_id` cache exists, so `model_copy` carries no stale cache.
 
 ## 5. Models (`core/models.py`, pydantic v2, leaf module)
 

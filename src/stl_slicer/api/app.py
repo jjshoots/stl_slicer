@@ -48,12 +48,10 @@ def _default_loader(data: bytes, filename: str, scale: float, /) -> LoadedModel:
 
 
 def _default_planner(model: LoadedModel, spec: SliceSpec, /) -> CutPlan:
-    from stl_slicer.core.pipeline import cell_limits
-    from stl_slicer.core.planning import plan_grid
+    from stl_slicer.core.pipeline import plan_model, resolve_spec
 
-    return plan_grid(
-        model.asset.bounds, cell_limits(spec), spec.partition.cuts, axes=spec.partition.axes
-    )
+    bounds = model.asset.bounds
+    return plan_model(bounds, resolve_spec(spec, bounds))
 
 
 async def _domain_error(_request: Request, exc: Exception) -> JSONResponse:

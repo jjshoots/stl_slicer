@@ -1,3 +1,5 @@
+import type { JointSpec } from '../api/types'
+
 /** A length in millimetres with a sensible number of decimals, e.g. `12.5 mm`. */
 export function formatLength(mm: number, digits = 1): string {
   if (!Number.isFinite(mm)) return '—'
@@ -41,4 +43,38 @@ export function formatNumberList(values: readonly number[]): string {
 export function humanizeCode(code: string): string {
   const s = code.replace(/_/g, ' ')
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/** Trim trailing zeros: `29.5 mm`, `123 mm`. */
+function jointMm(v: number): string {
+  return `${Number(v.toFixed(1))} mm`
+}
+
+/**
+ * Compact one-line joint summary, e.g. `jigsaw · head 29.5 mm · neck 16.2 mm · depth 38.4 mm · spacing 123 mm`.
+ * Used for the resolved (auto-sized) joint on the plan.
+ */
+export function formatJointSummary(joint: JointSpec): string {
+  switch (joint.kind) {
+    case 'none':
+      return 'none'
+    case 'dowel':
+      return ['dowel', `diameter ${jointMm(joint.diameter)}`, `depth ${jointMm(joint.depth)}`, `spacing ${jointMm(joint.spacing)}`].join(' · ')
+    case 'dovetail':
+      return [
+        'dovetail',
+        `head ${jointMm(joint.head_width)}`,
+        `neck ${jointMm(joint.neck_width)}`,
+        `depth ${jointMm(joint.depth)}`,
+        `spacing ${jointMm(joint.spacing)}`,
+      ].join(' · ')
+    case 'jigsaw':
+      return [
+        'jigsaw',
+        `head ${jointMm(joint.head_diameter)}`,
+        `neck ${jointMm(joint.neck_width)}`,
+        `depth ${jointMm(joint.depth)}`,
+        `spacing ${jointMm(joint.spacing)}`,
+      ].join(' · ')
+  }
 }
