@@ -57,7 +57,15 @@ function sameVolume(a: PrintVolume, b: PrintVolume): boolean {
 
 export function PrintVolumeForm({ value, presets, onChange }: PrintVolumeFormProps): ReactElement {
   const presetId = useId()
-  const match = presets.find((p) => sameVolume(p.print_volume, value))
+  // Several presets share a volume (every 256 mm Bambu machine), so remember the name the user
+  // picked and keep showing it while the volume still matches; otherwise fall back to the first
+  // preset with this volume.
+  const [chosen, setChosen] = useState<string | null>(null)
+  const chosenPreset = presets.find((p) => p.name === chosen)
+  const match =
+    chosenPreset && sameVolume(chosenPreset.print_volume, value)
+      ? chosenPreset
+      : presets.find((p) => sameVolume(p.print_volume, value))
   return (
     <div>
       <div className="field">
@@ -68,6 +76,7 @@ export function PrintVolumeForm({ value, presets, onChange }: PrintVolumeFormPro
           value={match ? match.name : ''}
           onChange={(e) => {
             const preset = presets.find((p) => p.name === e.target.value)
+            setChosen(preset ? preset.name : null)
             if (preset) onChange(preset.print_volume)
           }}
         >
