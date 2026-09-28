@@ -184,6 +184,10 @@ class DowelJointSpec(_Frozen):
     auto: bool = False
     """When true the numeric fields are ignored and derived from the model and bed by
     `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's width (head / diameter)."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's depth past the cut plane."""
     diameter: float = Field(default=8.0, gt=0)
     depth: float = Field(default=6.0, gt=0)
     clearance: float = Field(default=0.15, gt=0)
@@ -200,6 +204,10 @@ class DovetailJointSpec(_Frozen):
     auto: bool = False
     """When true the numeric fields are ignored and derived from the model and bed by
     `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's width (head / diameter)."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's depth past the cut plane."""
     neck_width: float = Field(default=8.0, gt=0)
     head_width: float = Field(default=12.0, gt=0)
     depth: float = Field(default=6.0, gt=0)
@@ -227,6 +235,10 @@ class JigsawJointSpec(_Frozen):
     auto: bool = False
     """When true the numeric fields are ignored and derived from the model and bed by
     `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's width (head / diameter)."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's depth past the cut plane."""
     neck_width: float = Field(default=8.0, gt=0)
     head_diameter: float = Field(default=14.0, gt=0)
     depth: float = Field(default=18.0, gt=0)

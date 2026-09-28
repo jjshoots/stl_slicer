@@ -130,3 +130,12 @@ def test_auto_specs_skip_shape_validation() -> None:
     spec = JigsawJointSpec(auto=True, neck_width=8, head_diameter=14, depth=12)
     assert spec.auto and spec.depth == 12
     assert DovetailJointSpec(auto=True, neck_width=10, head_width=10).auto
+
+
+def test_auto_scale_coefficients_default_to_one_and_are_bounded() -> None:
+    from stl_slicer.core.models import JigsawJointSpec
+
+    spec = JigsawJointSpec()
+    assert spec.size_scale == 1.0 and spec.depth_scale == 1.0
+    with pytest.raises(ValidationError):
+        JigsawJointSpec(size_scale=0.1)
