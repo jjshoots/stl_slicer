@@ -46,8 +46,12 @@ export function humanizeCode(code: string): string {
 }
 
 /** Trim trailing zeros: `29.5 mm`, `123 mm`. */
+function jointNum(v: number): string {
+  return String(Number(v.toFixed(1)))
+}
+
 function jointMm(v: number): string {
-  return `${Number(v.toFixed(1))} mm`
+  return `${jointNum(v)} mm`
 }
 
 /**
@@ -76,5 +80,12 @@ export function formatJointSummary(joint: JointSpec): string {
         `depth ${jointMm(joint.depth)}`,
         `spacing ${jointMm(joint.spacing)}`,
       ].join(' · ')
+    case 'tab':
+    case 'hexpin':
+      return [joint.kind, `width ${jointMm(joint.width)}`, `depth ${jointMm(joint.depth)}`, `spacing ${jointMm(joint.spacing)}`].join(' · ')
+    case 'tongue':
+      return ['tongue', `width ${jointMm(joint.width)}`, `depth ${jointMm(joint.depth)}`].join(' · ')
+    case 'magnet':
+      return ['magnet', `Ø${jointNum(joint.diameter)} × ${jointMm(joint.height)}`, `spacing ${jointMm(joint.spacing)}`].join(' · ')
   }
 }

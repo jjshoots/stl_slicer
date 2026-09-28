@@ -86,9 +86,11 @@ def joint_cells(
     plan: CutPlan, joints: Sequence[Joint]
 ) -> tuple[dict[str, Manifold], list[SliceWarning]]:
     """Cell solids after applying joints: ``(cube(cell) + males_out) - females_in``, with every
-    male/female solid clipped to its female cell first. Warns JOINT_CLIPPED when clipping
-    removed male volume that lay inside the plan bounds (i.e. would have reached another cell);
-    overshoot past the plan's outer bounds is outside the mesh and ignored.
+    male/female solid clipped to its female cell first. A pocket joint's `male_pocket` is clipped
+    to the male cell and subtracted there, in the same union-then-subtract order. Warns
+    JOINT_CLIPPED when clipping removed male volume that lay inside the plan bounds (i.e. would
+    have reached another cell); overshoot past the plan's outer bounds is outside the mesh and
+    ignored.
 
     Joint volume outside the plan's AABB lies outside every cell (and the mesh), so clipping it
     away is harmless; only volume inside it but outside the female cell would have reached a
@@ -101,8 +103,15 @@ def joint_cells(
 
     for joint in joints:
         fbox = boxes[joint.female_cell.id]
-        male_c = joint.male ^ fbox
         female_c = joint.female ^ fbox
+        females_in[joint.female_cell.id].append(female_c)
+        if joint.male_pocket is not None:
+            # pocket joints: the male side gets a pocket of its own, clipped to the male cell
+            females_in[joint.male_cell.id].append(joint.male_pocket ^ boxes[joint.male_cell.id])
+        if joint.male.is_empty():
+            continue
+        male_c = joint.male ^ fbox
+        males_out[joint.male_cell.id].append(male_c)
         lost = float((joint.male ^ plan_box).volume()) - float(male_c.volume())
         if lost > _CLIP_TOL:
             warnings.append(
@@ -116,8 +125,6 @@ def joint_cells(
                     subject=joint.interface_id,
                 )
             )
-        males_out[joint.male_cell.id].append(male_c)
-        females_in[joint.female_cell.id].append(female_c)
 
     cells: dict[str, Manifold] = {}
     for cell in plan.cells:

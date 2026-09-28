@@ -259,8 +259,104 @@ class JigsawJointSpec(_Frozen):
         return self
 
 
+class TabJointSpec(_Frozen):
+    """A plain rectangular registration tab: a `width`-wide rectangle in the (across, normal)
+    plane extruded along the thin in-plane axis through the cell, like a dovetail without the
+    flare. Pieces press together along the normal; nothing interlocks."""
+
+    kind: Literal["tab"] = "tab"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's width."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's depth past the cut plane."""
+    width: float = Field(default=10.0, gt=0)
+    depth: float = Field(default=6.0, gt=0)
+    clearance: float = Field(default=0.15, gt=0)
+    edge_margin: float = Field(default=3.0, ge=0)
+    spacing: float = Field(default=60.0, gt=0)
+
+
+class HexPinJointSpec(_Frozen):
+    """A hexagonal peg straddling the cut plane (`width` = across flats): registration plus
+    anti-rotation, otherwise exactly like a dowel."""
+
+    kind: Literal["hexpin"] = "hexpin"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's width (across flats)."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the joint's depth past the cut plane."""
+    width: float = Field(default=8.0, gt=0)
+    depth: float = Field(default=6.0, gt=0)
+    clearance: float = Field(default=0.15, gt=0)
+    edge_margin: float = Field(default=3.0, ge=0)
+    spacing: float = Field(default=40.0, gt=0)
+
+
+class TongueJointSpec(_Frozen):
+    """Tongue and groove: one `width`-wide rib per interface, centred across the thin in-plane
+    axis and running along the long one for the length of the contact region (it stops
+    `depth + clearance` short of interior cut planes). Pieces press together along the normal;
+    no spacing, since there is a single rib."""
+
+    kind: Literal["tongue"] = "tongue"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the rib's width."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the rib's depth past the cut plane."""
+    width: float = Field(default=5.0, gt=0)
+    depth: float = Field(default=4.0, gt=0)
+    clearance: float = Field(default=0.15, gt=0)
+    edge_margin: float = Field(default=2.0, ge=0)
+
+
+class MagnetJointSpec(_Frozen):
+    """Pockets for off-the-shelf disc magnets (`diameter` x `height`, e.g. 6 x 3 mm) on BOTH
+    faces of the cut. Nothing protrudes past the plane (`depth` is 0); each pocket is
+    `pocket_depth = height + clearance` deep and `diameter + 2 * clearance` wide."""
+
+    kind: Literal["magnet"] = "magnet"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
+    size_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the magnet diameter (snapped back to a stock size)."""
+    depth_scale: float = Field(default=1.0, ge=0.25, le=3.0)
+    """Auto sizing only: multiplier on the magnet height (rounded to 0.5 mm)."""
+    diameter: float = Field(default=6.0, gt=0)
+    height: float = Field(default=3.0, gt=0)
+    clearance: float = Field(default=0.1, gt=0)
+    edge_margin: float = Field(default=3.0, ge=0)
+    spacing: float = Field(default=50.0, gt=0)
+
+    @property
+    def depth(self) -> float:
+        """Protrusion past the cut plane: none, the pockets lie inside both pieces."""
+        return 0.0
+
+    @property
+    def pocket_depth(self) -> float:
+        return self.height + self.clearance
+
+
 JointSpec = Annotated[
-    NoJointSpec | DowelJointSpec | DovetailJointSpec | JigsawJointSpec, Field(discriminator="kind")
+    NoJointSpec
+    | DowelJointSpec
+    | DovetailJointSpec
+    | JigsawJointSpec
+    | TabJointSpec
+    | HexPinJointSpec
+    | TongueJointSpec
+    | MagnetJointSpec,
+    Field(discriminator="kind"),
 ]
 
 

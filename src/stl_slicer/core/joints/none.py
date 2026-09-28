@@ -37,6 +37,7 @@ class NoJoint(JointGenerator[NoJointSpec]):
         spec: NoJointSpec,
         extent_u: float,
         extent_v: float,
+        region: Region2D,
     ) -> tuple[Manifold, Manifold]:
         raise NotImplementedError("the none joint has no solid")
 

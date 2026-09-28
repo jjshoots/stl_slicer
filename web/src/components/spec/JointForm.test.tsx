@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { DowelJointSpec, DovetailJointSpec, JigsawJointSpec } from '../../api/types'
 import { DEFAULT_JOINTS } from '../../store/data'
-import { AUTO_HINT, JointForm, jigsawErrors } from './JointForm'
+import { AUTO_HINT, HEXPIN_HELP, JointForm, MAGNET_HELP, TAB_HELP, TONGUE_HELP, jigsawErrors } from './JointForm'
 
 /** Manual (auto off) variants of the defaults for the field-editing tests below. */
 const MANUAL = {
@@ -173,7 +173,7 @@ describe('JointForm auto size', () => {
   })
 
   it('is on by default for every sized kind, disables the inputs and shows the hint', () => {
-    for (const kind of ['dowel', 'dovetail', 'jigsaw'] as const) {
+    for (const kind of ['dowel', 'dovetail', 'jigsaw', 'tab', 'hexpin', 'tongue', 'magnet'] as const) {
       const { container, unmount } = render(
         <JointForm value={DEFAULT_JOINTS[kind]} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />,
       )
@@ -269,6 +269,99 @@ describe('JointForm auto size', () => {
     const jigsaw: JigsawJointSpec = { ...DEFAULT_JOINTS.jigsaw, neck_width: 14, depth: 7 }
     const b = render(<JointForm value={jigsaw} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
     expect(b.container.querySelectorAll('.error').length).toBe(0)
+  })
+})
+
+describe('JointForm new kinds (docs/03_more_joints.md)', () => {
+  const NEW_KINDS = [
+    { kind: 'tab', label: 'Rectangular tabs', labels: ['Width', 'Depth', 'Clearance', 'Edge margin', 'Spacing'], help: TAB_HELP },
+    { kind: 'hexpin', label: 'Hex pegs', labels: ['Width', 'Depth', 'Clearance', 'Edge margin', 'Spacing'], help: HEXPIN_HELP },
+    { kind: 'tongue', label: 'Tongue and groove', labels: ['Width', 'Depth', 'Clearance', 'Edge margin'], help: TONGUE_HELP },
+    { kind: 'magnet', label: 'Magnet pockets', labels: ['Diameter', 'Height', 'Clearance', 'Edge margin', 'Spacing'], help: MAGNET_HELP },
+  ] as const
+
+  it('has auto on and unit scales in every default', () => {
+    expect(DEFAULT_JOINTS.tab).toEqual({ kind: 'tab', auto: true, size_scale: 1, depth_scale: 1, width: 10, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 60 })
+    expect(DEFAULT_JOINTS.hexpin).toEqual({ kind: 'hexpin', auto: true, size_scale: 1, depth_scale: 1, width: 8, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 40 })
+    expect(DEFAULT_JOINTS.tongue).toEqual({ kind: 'tongue', auto: true, size_scale: 1, depth_scale: 1, width: 5, depth: 4, clearance: 0.15, edge_margin: 2 })
+    expect(DEFAULT_JOINTS.magnet).toEqual({ kind: 'magnet', auto: true, size_scale: 1, depth_scale: 1, diameter: 6, height: 3, clearance: 0.1, edge_margin: 3, spacing: 50 })
+  })
+
+  it.each(NEW_KINDS)('lists $label in the kind select and switching to $kind emits the defaults', ({ kind, label }) => {
+    const onChange = vi.fn()
+    render(<JointForm value={DEFAULT_JOINTS.none} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    expect(screen.getByRole('option', { name: label })).not.toBeNull()
+    fireEvent.change(screen.getByLabelText('Joint kind'), { target: { value: kind } })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(DEFAULT_JOINTS[kind])
+  })
+
+  it.each(NEW_KINDS)('renders exactly the $kind fields, the help line and the male side select', ({ kind, labels, help }) => {
+    const { container } = render(
+      <JointForm value={{ ...DEFAULT_JOINTS[kind], auto: false }} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />,
+    )
+    expect(container.querySelectorAll('input[type="number"]').length).toBe(labels.length)
+    for (const label of labels) {
+      expect(screen.queryByLabelText(label)).not.toBeNull()
+      expect(screen.getByText(`${label} (mm)`)).not.toBeNull()
+    }
+    expect(screen.getByText(help)).not.toBeNull()
+    expect(screen.queryByLabelText('Male side')).not.toBeNull()
+    expect(container.querySelectorAll('.error').length).toBe(0)
+  })
+
+  it('shows the default numbers per kind', () => {
+    const a = render(<JointForm value={DEFAULT_JOINTS.tab} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(inputValue('Width')).toBe('10')
+    expect(inputValue('Spacing')).toBe('60')
+    a.unmount()
+    const b = render(<JointForm value={DEFAULT_JOINTS.tongue} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(inputValue('Width')).toBe('5')
+    expect(inputValue('Depth')).toBe('4')
+    expect(screen.queryByLabelText('Spacing')).toBeNull()
+    b.unmount()
+    render(<JointForm value={DEFAULT_JOINTS.magnet} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(inputValue('Diameter')).toBe('6')
+    expect(inputValue('Height')).toBe('3')
+    expect(inputValue('Clearance')).toBe('0.1')
+  })
+
+  it('editing a field emits the patched spec for each new kind', () => {
+    const onChange = vi.fn()
+    const tab = { ...DEFAULT_JOINTS.tab, auto: false }
+    const a = render(<JointForm value={tab} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Width'), { target: { value: '12' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...tab, width: 12 })
+    a.unmount()
+    const tongue = { ...DEFAULT_JOINTS.tongue, auto: false }
+    const b = render(<JointForm value={tongue} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Edge margin'), { target: { value: '3' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...tongue, edge_margin: 3 })
+    b.unmount()
+    const magnet = { ...DEFAULT_JOINTS.magnet, auto: false }
+    render(<JointForm value={magnet} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Height'), { target: { value: '2' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...magnet, height: 2 })
+  })
+
+  it.each(NEW_KINDS)('auto toggle and scale sliders work for $kind', ({ kind }) => {
+    const onChange = vi.fn()
+    const value = DEFAULT_JOINTS[kind]
+    render(<JointForm value={value} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Joint width'), { target: { value: '1.5' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...value, size_scale: 1.5 })
+    fireEvent.change(screen.getByLabelText('Joint depth'), { target: { value: '0.75' } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...value, depth_scale: 0.75 })
+    fireEvent.click(screen.getByLabelText('Auto size'))
+    expect(onChange).toHaveBeenLastCalledWith({ ...value, auto: false })
+  })
+
+  it('shows resolved values from the plan for a new kind while auto is on', () => {
+    const resolved = { ...DEFAULT_JOINTS.magnet, auto: false, diameter: 8, height: 2.5, spacing: 72 }
+    render(<JointForm value={DEFAULT_JOINTS.magnet} resolvedJoint={resolved} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(inputValue('Diameter')).toBe('8')
+    expect(inputValue('Height')).toBe('2.5')
+    expect(inputValue('Spacing')).toBe('72')
   })
 })
 

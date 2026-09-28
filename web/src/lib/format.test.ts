@@ -72,4 +72,13 @@ describe('format', () => {
     )
     expect(formatJointSummary({ kind: 'none' })).toBe('none')
   })
+
+  it('formatJointSummary covers the four new kinds (docs/03_more_joints.md)', () => {
+    const base = { auto: false, size_scale: 1, depth_scale: 1, clearance: 0.15, edge_margin: 3 }
+    expect(formatJointSummary({ kind: 'tab', ...base, width: 10, depth: 6, spacing: 60 })).toBe('tab · width 10 mm · depth 6 mm · spacing 60 mm')
+    expect(formatJointSummary({ kind: 'hexpin', ...base, width: 8.25, depth: 6, spacing: 40 })).toBe('hexpin · width 8.3 mm · depth 6 mm · spacing 40 mm')
+    expect(formatJointSummary({ kind: 'tongue', ...base, width: 5, depth: 4 })).toBe('tongue · width 5 mm · depth 4 mm')
+    expect(formatJointSummary({ kind: 'magnet', ...base, clearance: 0.1, diameter: 6, height: 3, spacing: 50 })).toBe('magnet · Ø6 × 3 mm · spacing 50 mm')
+    expect(formatJointSummary({ kind: 'magnet', ...base, clearance: 0.1, diameter: 8, height: 2.5, spacing: 72.4 })).toBe('magnet · Ø8 × 2.5 mm · spacing 72.4 mm')
+  })
 })

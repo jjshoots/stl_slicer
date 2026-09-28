@@ -341,7 +341,7 @@ export interface components {
             /** Warnings */
             warnings?: components["schemas"]["SliceWarning"][];
             /** Resolved Joint */
-            resolved_joint?: (components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"]) | null;
+            resolved_joint?: (components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"] | components["schemas"]["TabJointSpec"] | components["schemas"]["HexPinJointSpec"] | components["schemas"]["TongueJointSpec"] | components["schemas"]["MagnetJointSpec"]) | null;
         };
         /**
          * DovetailJointSpec
@@ -458,6 +458,58 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HexPinJointSpec
+         * @description A hexagonal peg straddling the cut plane (`width` = across flats): registration plus
+         *     anti-rotation, otherwise exactly like a dowel.
+         */
+        HexPinJointSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "hexpin";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
+            /**
+             * Width
+             * @default 8
+             */
+            width: number;
+            /**
+             * Depth
+             * @default 6
+             */
+            depth: number;
+            /**
+             * Clearance
+             * @default 0.15
+             */
+            clearance: number;
+            /**
+             * Edge Margin
+             * @default 3
+             */
+            edge_margin: number;
+            /**
+             * Spacing
+             * @default 40
+             */
+            spacing: number;
+        };
+        /**
          * JigsawJointSpec
          * @description A jigsaw-puzzle knob: a round head on a neck, drawn in the (u, normal) plane and extruded
          *     along v through the cell, like a dovetail but with the classic puzzle-piece silhouette.
@@ -558,6 +610,59 @@ export interface components {
             /** Female Piece */
             female_piece: string;
             placement: components["schemas"]["Placement"];
+        };
+        /**
+         * MagnetJointSpec
+         * @description Pockets for off-the-shelf disc magnets (`diameter` x `height`, e.g. 6 x 3 mm) on BOTH
+         *     faces of the cut. Nothing protrudes past the plane (`depth` is 0); each pocket is
+         *     `pocket_depth = height + clearance` deep and `diameter + 2 * clearance` wide.
+         */
+        MagnetJointSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "magnet";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
+            /**
+             * Diameter
+             * @default 6
+             */
+            diameter: number;
+            /**
+             * Height
+             * @default 3
+             */
+            height: number;
+            /**
+             * Clearance
+             * @default 0.1
+             */
+            clearance: number;
+            /**
+             * Edge Margin
+             * @default 3
+             */
+            edge_margin: number;
+            /**
+             * Spacing
+             * @default 50
+             */
+            spacing: number;
         };
         /**
          * MaleSide
@@ -719,7 +824,7 @@ export interface components {
              *       "kind": "none"
              *     }
              */
-            joint: components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"];
+            joint: components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"] | components["schemas"]["TabJointSpec"] | components["schemas"]["HexPinJointSpec"] | components["schemas"]["TongueJointSpec"] | components["schemas"]["MagnetJointSpec"];
             /** @default lower */
             male_side: components["schemas"]["MaleSide"];
         };
@@ -743,6 +848,108 @@ export interface components {
             message: string;
             /** Subject */
             subject?: string | null;
+        };
+        /**
+         * TabJointSpec
+         * @description A plain rectangular registration tab: a `width`-wide rectangle in the (across, normal)
+         *     plane extruded along the thin in-plane axis through the cell, like a dovetail without the
+         *     flare. Pieces press together along the normal; nothing interlocks.
+         */
+        TabJointSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tab";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
+            /**
+             * Width
+             * @default 10
+             */
+            width: number;
+            /**
+             * Depth
+             * @default 6
+             */
+            depth: number;
+            /**
+             * Clearance
+             * @default 0.15
+             */
+            clearance: number;
+            /**
+             * Edge Margin
+             * @default 3
+             */
+            edge_margin: number;
+            /**
+             * Spacing
+             * @default 60
+             */
+            spacing: number;
+        };
+        /**
+         * TongueJointSpec
+         * @description Tongue and groove: one `width`-wide rib per interface, centred across the thin in-plane
+         *     axis and running along the long one for the length of the contact region (it stops
+         *     `depth + clearance` short of interior cut planes). Pieces press together along the normal;
+         *     no spacing, since there is a single rib.
+         */
+        TongueJointSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tongue";
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
+            /**
+             * Size Scale
+             * @default 1
+             */
+            size_scale: number;
+            /**
+             * Depth Scale
+             * @default 1
+             */
+            depth_scale: number;
+            /**
+             * Width
+             * @default 5
+             */
+            width: number;
+            /**
+             * Depth
+             * @default 4
+             */
+            depth: number;
+            /**
+             * Clearance
+             * @default 0.15
+             */
+            clearance: number;
+            /**
+             * Edge Margin
+             * @default 2
+             */
+            edge_margin: number;
         };
         /** ValidationError */
         ValidationError: {

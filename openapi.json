@@ -815,6 +815,18 @@
                   },
                   {
                     "$ref": "#/components/schemas/JigsawJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TabJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HexPinJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TongueJointSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MagnetJointSpec"
                   }
                 ],
                 "discriminator": {
@@ -822,8 +834,12 @@
                   "mapping": {
                     "dovetail": "#/components/schemas/DovetailJointSpec",
                     "dowel": "#/components/schemas/DowelJointSpec",
+                    "hexpin": "#/components/schemas/HexPinJointSpec",
                     "jigsaw": "#/components/schemas/JigsawJointSpec",
-                    "none": "#/components/schemas/NoJointSpec"
+                    "magnet": "#/components/schemas/MagnetJointSpec",
+                    "none": "#/components/schemas/NoJointSpec",
+                    "tab": "#/components/schemas/TabJointSpec",
+                    "tongue": "#/components/schemas/TongueJointSpec"
                   }
                 }
               },
@@ -986,6 +1002,68 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HexPinJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "hexpin",
+            "title": "Kind",
+            "default": "hexpin"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "default": 8.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 6.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 40.0
+          }
+        },
+        "type": "object",
+        "title": "HexPinJointSpec",
+        "description": "A hexagonal peg straddling the cut plane (`width` = across flats): registration plus\nanti-rotation, otherwise exactly like a dowel."
       },
       "JigsawJointSpec": {
         "properties": {
@@ -1151,6 +1229,68 @@
           "placement"
         ],
         "title": "JointInfo"
+      },
+      "MagnetJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "magnet",
+            "title": "Kind",
+            "default": "magnet"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
+          },
+          "diameter": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Diameter",
+            "default": 6.0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Height",
+            "default": 3.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.1
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 50.0
+          }
+        },
+        "type": "object",
+        "title": "MagnetJointSpec",
+        "description": "Pockets for off-the-shelf disc magnets (`diameter` x `height`, e.g. 6 x 3 mm) on BOTH\nfaces of the cut. Nothing protrudes past the plane (`depth` is 0); each pocket is\n`pocket_depth = height + clearance` deep and `diameter + 2 * clearance` wide."
       },
       "MaleSide": {
         "type": "string",
@@ -1539,6 +1679,18 @@
               },
               {
                 "$ref": "#/components/schemas/JigsawJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/TabJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/HexPinJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/TongueJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/MagnetJointSpec"
               }
             ],
             "title": "Joint",
@@ -1550,8 +1702,12 @@
               "mapping": {
                 "dovetail": "#/components/schemas/DovetailJointSpec",
                 "dowel": "#/components/schemas/DowelJointSpec",
+                "hexpin": "#/components/schemas/HexPinJointSpec",
                 "jigsaw": "#/components/schemas/JigsawJointSpec",
-                "none": "#/components/schemas/NoJointSpec"
+                "magnet": "#/components/schemas/MagnetJointSpec",
+                "none": "#/components/schemas/NoJointSpec",
+                "tab": "#/components/schemas/TabJointSpec",
+                "tongue": "#/components/schemas/TongueJointSpec"
               }
             }
           },
@@ -1626,6 +1782,124 @@
           "message"
         ],
         "title": "SliceWarning"
+      },
+      "TabJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tab",
+            "title": "Kind",
+            "default": "tab"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "default": 10.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 6.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 60.0
+          }
+        },
+        "type": "object",
+        "title": "TabJointSpec",
+        "description": "A plain rectangular registration tab: a `width`-wide rectangle in the (across, normal)\nplane extruded along the thin in-plane axis through the cell, like a dovetail without the\nflare. Pieces press together along the normal; nothing interlocks."
+      },
+      "TongueJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tongue",
+            "title": "Kind",
+            "default": "tongue"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
+          },
+          "size_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Size Scale",
+            "default": 1.0
+          },
+          "depth_scale": {
+            "type": "number",
+            "maximum": 3.0,
+            "minimum": 0.25,
+            "title": "Depth Scale",
+            "default": 1.0
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "default": 5.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 4.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 2.0
+          }
+        },
+        "type": "object",
+        "title": "TongueJointSpec",
+        "description": "Tongue and groove: one `width`-wide rib per interface, centred across the thin in-plane\naxis and running along the long one for the length of the contact region (it stops\n`depth + clearance` short of interior cut planes). Pieces press together along the normal;\nno spacing, since there is a single rib."
       },
       "ValidationError": {
         "properties": {

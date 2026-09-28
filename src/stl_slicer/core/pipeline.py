@@ -162,11 +162,12 @@ def _place_joints(
 def _assembly_conflicts(
     plan: CutPlan, joints: list[Joint], piece_ids: set[str], kind: str
 ) -> list[SliceWarning]:
-    """Strip joints (dovetail, jigsaw) slide along `generator.slide_axis(interface)`; a piece
-    whose joints slide along different axes cannot be assembled by sliding
-    (docs/00_design.md §4.2)."""
+    """Interlocking strip joints (dovetail, jigsaw) slide along `generator.slide_axis(interface)`;
+    a piece whose joints slide along different axes cannot be assembled by sliding
+    (docs/00_design.md §4.2). Strips without an undercut (tab, tongue) press together along the
+    normal and never conflict."""
     gen = get_generator(kind)
-    if not isinstance(gen, ProfileStripJoint):
+    if not isinstance(gen, ProfileStripJoint) or not gen.interlocks:
         return []
     interfaces = {i.id: i for i in plan.interfaces}
     axes: defaultdict[str, set[Axis]] = defaultdict(set)

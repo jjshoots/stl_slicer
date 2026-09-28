@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 
 import pytest
 
@@ -14,14 +15,18 @@ from stl_slicer.core.models import (
     Bounds,
     DovetailJointSpec,
     DowelJointSpec,
+    HexPinJointSpec,
     JigsawJointSpec,
     JointSpec,
+    MagnetJointSpec,
     MeshAsset,
     NoJointSpec,
     PartitionSpec,
     PrintVolume,
     SliceResult,
     SliceSpec,
+    TabJointSpec,
+    TongueJointSpec,
     WarningCode,
 )
 from stl_slicer.core.pipeline import CancelToken, cell_limits, slice_model
@@ -434,6 +439,109 @@ def test_jigsaw_flat_puzzle_end_to_end() -> None:
     assert {j.interface_id for j in result.joints} == {i.id for i in result.plan.interfaces}
     assert result.warnings == []
     _assert_consistent(result)
+
+
+# --- tab / hexpin / tongue / magnet (docs/03_more_joints.md) --------------------------------------
+
+NEW_KIND_SPECS: list[JointSpec] = [
+    TabJointSpec(),
+    # the default 8 mm hexagon is 9.24 mm across corners: a 3 mm margin leaves only 9 mm of the
+    # 15 mm thickness for it, so it needs a slightly smaller margin than the dowel does
+    HexPinJointSpec(edge_margin=2.5),
+    TongueJointSpec(),
+    MagnetJointSpec(),
+]
+
+
+@pytest.mark.parametrize("joint", NEW_KIND_SPECS, ids=lambda j: j.kind)
+def test_new_kinds_flat_slab_2x2_end_to_end(joint: JointSpec) -> None:
+    slab = _box((0, 0, 0), (200, 200, 15))
+    spec = _spec(130.0, joint, axes=[Axis.X, Axis.Y])
+    result = slice_model(make_model(slab), spec).result
+    assert result.plan.cuts.z == []
+    assert len(result.plan.cells) == 4
+    assert len(result.pieces) == 4
+    assert result.stats.max_overlap_volume == 0.0
+    assert all(p.fits_bed for p in result.pieces)
+    assert result.joints and all(j.kind == joint.kind for j in result.joints)
+    assert {j.interface_id for j in result.joints} == {i.id for i in result.plan.interfaces}
+    assert result.warnings == []
+    _assert_consistent(result)
+
+
+def test_tongue_ribs_from_x_and_y_interfaces_never_meet() -> None:
+    """Two ribs enter the same cell from its X face and its Y face; the rib-length rule (rib =
+    the placement region, which is inset depth + clearance from interior planes) keeps them
+    and their grooves apart (B1 for ribs)."""
+    from stl_slicer.core.joints.registry import get_generator
+    from stl_slicer.core.pipeline import plan_model, resolve_spec
+    from stl_slicer.core.slicing import contact_regions, male_female
+
+    slab = _box((0, 0, 0), (200, 200, 15))
+    model = make_model(slab)
+    spec = resolve_spec(_spec(130.0, TongueJointSpec(), axes=[Axis.X, Axis.Y]), model.mesh.bounds)
+    plan = plan_model(model.mesh.bounds, spec)
+    assert len(plan.interfaces) == 4
+    regions = contact_regions(model.mesh, plan, spec.joint.depth + spec.joint.clearance)
+    gen = get_generator("tongue")
+    joints = []
+    for iface in plan.interfaces:
+        male, female = male_female(iface, spec.male_side)
+        joints.extend(gen.call(iface, regions[iface.id], spec.joint, male, female))
+    assert len(joints) == 4
+    by_axis = {
+        a: [j for j in joints if j.interface_id.startswith(a.value)] for a in (Axis.X, Axis.Y)
+    }
+    assert len(by_axis[Axis.X]) == 2 and len(by_axis[Axis.Y]) == 2
+    for jx in by_axis[Axis.X]:
+        for jy in by_axis[Axis.Y]:
+            assert float((jx.female ^ jy.female).volume()) == 0.0
+            assert float((jx.male ^ jy.female).volume()) == 0.0
+            assert float((jy.male ^ jx.female).volume()) == 0.0
+    # each rib stops depth + clearance + edge_margin short of the crossing plane at 100 and
+    # edge_margin short of the model's outer edge
+    m = spec.joint.edge_margin
+    gap = spec.joint.depth + spec.joint.clearance + m
+    for jx in by_axis[Axis.X]:  # rib along Y
+        bb = [float(x) for x in jx.male.bounding_box()]
+        assert (bb[1] == pytest.approx(m) and bb[4] == pytest.approx(100 - gap)) or (
+            bb[1] == pytest.approx(100 + gap) and bb[4] == pytest.approx(200 - m)
+        )
+
+
+def test_magnet_pockets_on_both_pieces_of_a_2_piece_slab() -> None:
+    slab = _box((0, 0, 0), (100, 40, 15))
+    joint = MagnetJointSpec(diameter=6, height=3, clearance=0.1, spacing=50, edge_margin=3)
+    result_out = slice_model(make_model(slab), _spec(1000.0, joint, cuts=AxisCuts(x=[50])))
+    result = result_out.result
+    assert len(result.pieces) == 2
+    assert result.warnings == []
+    assert result.stats.max_overlap_volume == 0.0
+    assert result.joints and all(j.kind == "magnet" for j in result.joints)
+    n = len(result.joints)
+    r = joint.diameter / 2 + joint.clearance
+    pocket = 32 / 2 * r**2 * math.sin(2 * math.pi / 32) * joint.pocket_depth  # one 32-gon pocket
+    cell = 50.0 * 40.0 * 15.0  # each cell is fully inside the mesh
+    by_id = {p.piece_id: p for p in result.pieces}
+    male_piece, female_piece = result.joints[0].male_piece, result.joints[0].female_piece
+    assert {male_piece, female_piece} == set(by_id)
+    for piece_id in (male_piece, female_piece):
+        assert by_id[piece_id].volume == pytest.approx(cell - n * pocket, rel=1e-3)
+        assert by_id[piece_id].volume < cell
+    # the pockets are the only lost volume, and the invariant accounts for them exactly
+    assert result.stats.output_volume == pytest.approx(cell * 2 - 2 * n * pocket, rel=1e-3)
+    _assert_consistent(result)
+
+
+def test_tab_and_tongue_never_raise_assembly_conflict() -> None:
+    """Non-interlocking strips press together along the normal: a piece with an X and a Z tab
+    is fine, unlike the same piece with dovetails (test_assembly_conflict_warning)."""
+    bar = _box((0, 0, 0), (100, 30, 100))
+    for joint in (TabJointSpec(), TongueJointSpec()):
+        result = slice_model(make_model(bar), _spec(70.0, joint)).result
+        assert WarningCode.ASSEMBLY_CONFLICT not in _codes(result)
+        assert len(result.joints) >= 2
+        _assert_consistent(result)
 
 
 # --- auto joint sizing ---------------------------------------------------------------------------

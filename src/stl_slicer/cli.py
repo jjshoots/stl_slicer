@@ -14,11 +14,15 @@ from stl_slicer.core.errors import MeshLoadError, PlanError
 from stl_slicer.core.models import (
     DovetailJointSpec,
     DowelJointSpec,
+    HexPinJointSpec,
     JigsawJointSpec,
     JointSpec,
+    MagnetJointSpec,
     NoJointSpec,
     PrintVolume,
     SliceSpec,
+    TabJointSpec,
+    TongueJointSpec,
 )
 
 app = typer.Typer(
@@ -27,13 +31,26 @@ app = typer.Typer(
     help="Partition STL meshes into print-bed-sized pieces with interlocking joints.",
 )
 
-JOINT_KINDS: dict[
-    str, type[NoJointSpec] | type[DowelJointSpec] | type[DovetailJointSpec] | type[JigsawJointSpec]
-] = {
+JointSpecType = (
+    type[NoJointSpec]
+    | type[DowelJointSpec]
+    | type[DovetailJointSpec]
+    | type[JigsawJointSpec]
+    | type[TabJointSpec]
+    | type[HexPinJointSpec]
+    | type[TongueJointSpec]
+    | type[MagnetJointSpec]
+)
+
+JOINT_KINDS: dict[str, JointSpecType] = {
     "none": NoJointSpec,
     "dowel": DowelJointSpec,
     "dovetail": DovetailJointSpec,
     "jigsaw": JigsawJointSpec,
+    "tab": TabJointSpec,
+    "hexpin": HexPinJointSpec,
+    "tongue": TongueJointSpec,
+    "magnet": MagnetJointSpec,
 }
 
 
@@ -64,8 +81,8 @@ def parse_bed(bed: str) -> PrintVolume:
 
 
 def joint_spec(kind: str, auto: bool = True) -> JointSpec:
-    """Joint spec for `kind` (none, dowel, dovetail or jigsaw): auto-sized from the model and bed
-    by default, or the kind's built-in defaults when `auto` is false.
+    """Joint spec for `kind` (one of `JOINT_KINDS`): auto-sized from the model and bed by
+    default, or the kind's built-in defaults when `auto` is false.
 
     Raises:
         typer.BadParameter: unknown kind.
@@ -112,7 +129,10 @@ def slice_cmd(
     bed: Annotated[str, typer.Option(help="Print volume in mm, AxBxC.")] = "220x220x250",
     joint: Annotated[
         str,
-        typer.Option(help="Joint kind: none|dowel|dovetail|jigsaw (sized automatically)."),
+        typer.Option(
+            help="Joint kind: none|dowel|dovetail|jigsaw|tab|hexpin|tongue|magnet "
+            "(sized automatically)."
+        ),
     ] = "none",
     manual: Annotated[
         bool,

@@ -141,6 +141,61 @@ function JigsawFields({ value, disabled, onChange }: JointFieldsProps<Extract<Jo
   )
 }
 
+function CommonFields<S extends SizedJointSpec>({ value, disabled, onChange, spacing }: JointFieldsProps<S> & { spacing?: boolean }): ReactElement {
+  return (
+    <div className="field-row">
+      <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} disabled={disabled} onChange={(clearance) => onChange({ ...value, clearance })} />
+      <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} disabled={disabled} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
+      {spacing && 'spacing' in value && (
+        <NumberField label="Spacing" value={value.spacing} min={0} step={1} disabled={disabled} onChange={(spacing) => onChange({ ...value, spacing })} />
+      )}
+    </div>
+  )
+}
+
+export const TAB_HELP = 'Plain rectangular tabs along the cut, pressed together along the normal'
+export const HEXPIN_HELP = 'Hexagonal pegs: registration plus anti-rotation'
+export const TONGUE_HELP = 'One rib along the whole seam, pressed together along the normal — strongest glue joint for panels'
+export const MAGNET_HELP = 'Pockets on both faces for disc magnets (e.g. 6×3 mm); pieces snap together'
+
+function WidthDepthFields<S extends JointOf<'tab' | 'hexpin' | 'tongue'>>({ value, disabled, onChange, help }: JointFieldsProps<S> & { help: string }): ReactElement {
+  return (
+    <>
+      <div className="field-row">
+        <NumberField label="Width" value={value.width} min={0} step={0.5} disabled={disabled} onChange={(width) => onChange({ ...value, width })} />
+        <NumberField label="Depth" value={value.depth} min={0} step={0.5} disabled={disabled} onChange={(depth) => onChange({ ...value, depth })} />
+      </div>
+      <CommonFields value={value} disabled={disabled} onChange={onChange} spacing={value.kind !== 'tongue'} />
+      <p className="hint muted">{help}</p>
+    </>
+  )
+}
+
+function TabFields(props: JointFieldsProps<JointOf<'tab'>>): ReactElement {
+  return <WidthDepthFields {...props} help={TAB_HELP} />
+}
+
+function HexpinFields(props: JointFieldsProps<JointOf<'hexpin'>>): ReactElement {
+  return <WidthDepthFields {...props} help={HEXPIN_HELP} />
+}
+
+function TongueFields(props: JointFieldsProps<JointOf<'tongue'>>): ReactElement {
+  return <WidthDepthFields {...props} help={TONGUE_HELP} />
+}
+
+function MagnetFields({ value, disabled, onChange }: JointFieldsProps<JointOf<'magnet'>>): ReactElement {
+  return (
+    <>
+      <div className="field-row">
+        <NumberField label="Diameter" value={value.diameter} min={0} step={0.5} disabled={disabled} onChange={(diameter) => onChange({ ...value, diameter })} />
+        <NumberField label="Height" value={value.height} min={0} step={0.5} disabled={disabled} onChange={(height) => onChange({ ...value, height })} />
+      </div>
+      <CommonFields value={value} disabled={disabled} onChange={onChange} spacing />
+      <p className="hint muted">{MAGNET_HELP}</p>
+    </>
+  )
+}
+
 /** Mirrors the backend `JigsawJointSpec` validators. */
 export function jigsawErrors(v: Extract<JointSpec, { kind: 'jigsaw' }>): string[] {
   const errors: string[] = []
@@ -157,6 +212,10 @@ const JOINT_FORMS: { [K in JointKind]: ComponentType<JointFieldsProps<JointOf<K>
   dowel: DowelFields,
   dovetail: DovetailFields,
   jigsaw: JigsawFields,
+  tab: TabFields,
+  hexpin: HexpinFields,
+  tongue: TongueFields,
+  magnet: MagnetFields,
 }
 
 const KIND_LABELS: { [K in JointKind]: string } = {
@@ -164,6 +223,10 @@ const KIND_LABELS: { [K in JointKind]: string } = {
   dowel: 'Dowel pins',
   dovetail: 'Sliding dovetail',
   jigsaw: 'Jigsaw knobs',
+  tab: 'Rectangular tabs',
+  hexpin: 'Hex pegs',
+  tongue: 'Tongue and groove',
+  magnet: 'Magnet pockets',
 }
 
 const KINDS = Object.keys(KIND_LABELS) as JointKind[]

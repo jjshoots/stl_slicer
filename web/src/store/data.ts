@@ -40,6 +40,10 @@ export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { ki
     edge_margin: 3,
     spacing: 60,
   },
+  tab: { kind: 'tab', auto: true, size_scale: 1, depth_scale: 1, width: 10, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 60 },
+  hexpin: { kind: 'hexpin', auto: true, size_scale: 1, depth_scale: 1, width: 8, depth: 6, clearance: 0.15, edge_margin: 3, spacing: 40 },
+  tongue: { kind: 'tongue', auto: true, size_scale: 1, depth_scale: 1, width: 5, depth: 4, clearance: 0.15, edge_margin: 2 },
+  magnet: { kind: 'magnet', auto: true, size_scale: 1, depth_scale: 1, diameter: 6, height: 3, clearance: 0.1, edge_margin: 3, spacing: 50 },
 }
 
 export const DEFAULT_SPEC: SliceSpec = {

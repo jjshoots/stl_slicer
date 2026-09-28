@@ -26,7 +26,7 @@ cd web && npm run dev                  # Vite on :5173, proxies /api to :8000
 CLI, no browser:
 
 ```bash
-uv run stl-slicer slice model.stl --bed 220x220x250 --joint dovetail -o out/
+uv run stl-slicer slice model.stl --bed 220x220x250 --joint jigsaw -o out/   # add --manual to skip auto sizing
 # out/: one STL per piece (print frame: min z = 0, xy-centred) + manifest.json (a SliceResult)
 ```
 
@@ -42,11 +42,22 @@ uv run stl-slicer slice model.stl --bed 220x220x250 --joint dovetail -o out/
 4. **Carve** — every piece is a single boolean `mesh ∩ cell′`, so tabs exist only where the model
    has material and pieces are pairwise disjoint by construction (verified at runtime).
 
-Joint kinds: `none`, `dowel` (registration pin, extruded along the cut normal), `dovetail`
-(trapezoid in the plane containing the normal, extruded through the cell along the slide axis, so
-the pieces interlock against pull-apart and assemble by sliding). A piece whose dovetails slide
-along different axes gets an `assembly_conflict` warning — a full 3D grid cannot be assembled by
-sliding alone, so use dovetails for models cut along one or two axes and dowels otherwise.
+Joint kinds (all auto-sized from the model and bed by default, with width/depth scale sliders):
+
+| kind | shape | holds by |
+|---|---|---|
+| `dowel` | cylindrical pin along the cut normal | registration |
+| `hexpin` | hexagonal peg | registration, anti-rotation |
+| `tab` | rectangular tab along the cut (the classic slicer "connector") | registration |
+| `tongue` | one tongue-and-groove rib along the whole seam | registration; strongest glue joint for panels |
+| `dovetail` | flared strip through the thickness | interlocks; assemble by sliding |
+| `jigsaw` | puzzle knob through the thickness | interlocks; flat models drop together like a puzzle |
+| `magnet` | pockets on both faces for disc magnets (6×3 mm etc.) | snap together, separable |
+
+Strip joints (dovetail, jigsaw, tab) run along the model's thinnest in-plane axis, so a flat model
+cut in X and Y assembles by dropping pieces in along Z. A piece whose interlocking joints slide
+along different axes gets an `assembly_conflict` warning. The "Cut along X / Y / Z" checkboxes
+restrict which axes are cut.
 
 ## Layout
 

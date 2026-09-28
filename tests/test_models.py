@@ -139,3 +139,29 @@ def test_auto_scale_coefficients_default_to_one_and_are_bounded() -> None:
     assert spec.size_scale == 1.0 and spec.depth_scale == 1.0
     with pytest.raises(ValidationError):
         JigsawJointSpec(size_scale=0.1)
+
+
+def test_new_joint_specs_round_trip_and_expose_depth() -> None:
+    from stl_slicer.core.models import (
+        HexPinJointSpec,
+        MagnetJointSpec,
+        TabJointSpec,
+        TongueJointSpec,
+    )
+
+    adapter: TypeAdapter[JointSpec] = TypeAdapter(JointSpec)
+    for kind, cls in (
+        ("tab", TabJointSpec),
+        ("hexpin", HexPinJointSpec),
+        ("tongue", TongueJointSpec),
+        ("magnet", MagnetJointSpec),
+    ):
+        spec = adapter.validate_python({"kind": kind})
+        assert isinstance(spec, cls)
+        assert adapter.validate_python(adapter.dump_python(spec)) == spec
+        assert spec.clearance > 0 and spec.depth >= 0
+    magnet = MagnetJointSpec(height=4, clearance=0.2)
+    assert magnet.depth == 0.0 and magnet.pocket_depth == pytest.approx(4.2)
+    assert "depth" not in magnet.model_dump()
+    assert "spacing" not in TongueJointSpec.model_json_schema()["properties"]
+    assert "depth" not in MagnetJointSpec.model_json_schema()["properties"]

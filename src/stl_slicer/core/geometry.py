@@ -385,7 +385,10 @@ class Joint:
     placement: Placement
     male: manifold3d.Manifold  # WORLD frame; both solids sit on the female side
     female: manifold3d.Manifold
-    clearance_volume: float  # female.volume - male.volume
+    clearance_volume: float  # female.volume - male.volume (+ male_pocket.volume)
+    male_pocket: manifold3d.Manifold | None = None
+    """Pocket joints only (no male tab): the pocket carved out of the MALE piece, in the world
+    frame on the male side of the plane. `male` is then empty and `female` is the female pocket."""
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,10 @@
 # 00 — Design: stl-slicer
 
+v7 — four more joint kinds (2026-09-28): `tab`, `hexpin`, `tongue` and `magnet`, with the
+additive base-class changes (`solid` receives the placement region, `has_male` / `Joint.male_pocket`
+for pocket joints, `ProfileStripJoint.interlocks` gating `ASSEMBLY_CONFLICT`); see
+`03_more_joints.md`.
+
 v5 — auto joint sizing (2026-09-28): `JointSpec.auto` derives the joint's numeric fields from the
 model and the bed (§4.6, `core/joints/auto.py`); the pipeline and `/plan` resolve the joint first,
 run everything on the resolved spec, and record it in `CutPlan.resolved_joint` and
