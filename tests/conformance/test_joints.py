@@ -472,6 +472,51 @@ def test_strip_runs_along_the_thin_axis_on_a_y_cut(kind: str) -> None:
         assert bb[3] - bb[0] < 100.0  # not a strip along X
 
 
+@pytest.mark.parametrize("kind", STRIP_KINDS)
+@pytest.mark.parametrize("female_upper", [True, False])
+def test_strip_edge_margin_only_insets_across_the_slide(kind: str, female_upper: bool) -> None:
+    """A 200 x 1.5 region (u x v) slides along v; a 3 mm margin must not empty it, because the
+    strip spans the whole interface along the slide anyway (a 1.5 mm relief panel)."""
+    iface = _plan_ifaces(Bounds(min=(0, 0, 0), max=(100, 200, 1.5)), AxisCuts(x=[50]))[
+        Axis.X
+    ]  # frame (u=Y, v=Z): 200 x 1.5
+    assert iface.extent_u == pytest.approx(200) and iface.extent_v == pytest.approx(1.5)
+    gen = get_generator(kind)
+    assert isinstance(gen, ProfileStripJoint)
+    assert gen.slide_axis(iface) is Axis.Z
+    spec = gen.spec_type(edge_margin=3)
+    region = Region2D.rect(*iface.rect)
+    male, female = (iface.lower, iface.upper) if female_upper else (iface.upper, iface.lower)
+    joints = gen.call(iface, region, spec, male, female)
+    assert len(joints) >= 1
+    u0, _, u1, _ = iface.rect
+    hw = gen.strip_half_width(spec)
+    for j in joints:
+        assert u0 + 3 + hw - TOL <= j.placement.u <= u1 - 3 - hw + TOL  # margin across u holds
+        bb = _bb(j.male)
+        assert bb[2] == pytest.approx(0.0) and bb[5] == pytest.approx(1.5)  # full Z thickness
+    # a dowel on the same region: the isotropic inset empties it
+    dowel = DowelJointSpec(edge_margin=3)
+    assert DowelJoint().call(iface, region, dowel, male, female) == []
+    # the tongue keeps the isotropic inset (its rib length follows the region) and a rib cannot
+    # fit across 1.5 mm in any case
+    assert TongueJoint().call(iface, region, TongueJointSpec(edge_margin=3), male, female) == []
+
+
+def test_strip_inset_region_is_across_only() -> None:
+    region = Region2D.rect(-100, -0.75, 100, 0.75)
+    spec = JigsawJointSpec(edge_margin=3)
+    # slides along v (u is the larger extent): inset u only
+    got = JigsawJoint().inset_region(region, spec, 200, 1.5)
+    assert got.bounds == pytest.approx((-97, -0.75, 97, 0.75))
+    # slides along u (transposed): inset v only
+    got = JigsawJoint().inset_region(region.transpose(), spec, 1.5, 200)
+    assert got.bounds == pytest.approx((-0.75, -97, 0.75, 97))
+    # grid kinds and the tongue keep the isotropic inset
+    assert DowelJoint().inset_region(region, DowelJointSpec(edge_margin=3), 200, 1.5).is_empty
+    assert TongueJoint().inset_region(region, TongueJointSpec(edge_margin=3), 200, 1.5).is_empty
+
+
 def test_cells_must_belong_to_interface(interface: CutInterface) -> None:
     with pytest.raises(ValueError):
         DowelJoint().call(

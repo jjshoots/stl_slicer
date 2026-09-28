@@ -92,7 +92,7 @@ class JointGenerator(ABC, Generic[SpecT]):  # noqa: UP046 - signature fixed by t
             )
         sized = _sized(spec)
         depth = float(sized.depth)
-        region_inset = region.inset(float(sized.edge_margin))
+        region_inset = self.inset_region(region, spec, interface.extent_u, interface.extent_v)
         if region_inset.is_empty:
             return []
 
@@ -144,6 +144,13 @@ class JointGenerator(ABC, Generic[SpecT]):  # noqa: UP046 - signature fixed by t
                 )
             )
         return joints
+
+    def inset_region(
+        self, region: Region2D, spec: SpecT, extent_u: float, extent_v: float
+    ) -> Region2D:
+        """The placement region: `region` inset by the spec's `edge_margin` (isotropically by
+        default). Separate from, and applied after, the caller's interior-edge inset."""
+        return region.inset(float(_sized(spec).edge_margin))
 
     def _where(self, p: Placement) -> str:
         return f"{self.kind} joint at (u={p.u:.3f}, v={p.v:.3f})"
@@ -313,6 +320,19 @@ class ProfileStripJoint(JointGenerator[SpecT]):
     @staticmethod
     def _slides_along_u(extent_u: float, extent_v: float) -> bool:
         return extent_u < extent_v
+
+    def inset_region(
+        self, region: Region2D, spec: SpecT, extent_u: float, extent_v: float
+    ) -> Region2D:
+        """Inset by `edge_margin` only ACROSS the slide (along the axis the profile is drawn
+        on): the strip spans the full interface extent along the slide anyway, so a margin there
+        would only empty thin regions (a 1.5 mm panel against a 3 mm margin)."""
+        if region.is_empty:
+            return region
+        edges = (
+            ("v_min", "v_max") if self._slides_along_u(extent_u, extent_v) else ("u_min", "u_max")
+        )
+        return region.inset_edges(float(_sized(spec).edge_margin), edges, rect=region.bounds)
 
     def slide_axis(self, interface: CutInterface) -> Axis:
         """World axis this joint slides along on `interface` (the smaller in-plane extent)."""

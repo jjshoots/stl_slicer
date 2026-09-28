@@ -34,6 +34,14 @@ class TongueJoint(ProfileStripJoint[TongueJointSpec]):
         # inverted: the rib runs along the LONGER in-plane axis (ties -> v, as for the others)
         return extent_u > extent_v
 
+    def inset_region(
+        self, region: Region2D, spec: TongueJointSpec, extent_u: float, extent_v: float
+    ) -> Region2D:
+        # Unlike the other strips the rib spans the placement REGION (not the interface rect)
+        # along its axis, so the margin along the rib is what stops it short of the edges: keep
+        # the isotropic inset rather than the across-only one of `ProfileStripJoint`.
+        return region.inset(float(spec.edge_margin))
+
     def strip_profiles(self, spec: TongueJointSpec) -> tuple[Region2D, Region2D]:
         hw, c = spec.width / 2, spec.clearance
         male = Region2D.rect(-hw, 0.0, hw, spec.depth)

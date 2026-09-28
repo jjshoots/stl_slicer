@@ -544,6 +544,31 @@ def test_tab_and_tongue_never_raise_assembly_conflict() -> None:
         _assert_consistent(result)
 
 
+@pytest.mark.parametrize(
+    "joint",
+    [
+        JigsawJointSpec(auto=True),
+        TabJointSpec(auto=True),
+        DovetailJointSpec(auto=True),
+        # a manual margin far larger than the thickness: only the across-slide inset applies
+        JigsawJointSpec(head_diameter=10, neck_width=6, depth=12, edge_margin=3.8),
+    ],
+    ids=["jigsaw-auto", "tab-auto", "dovetail-auto", "jigsaw-margin-3.8"],
+)
+def test_strips_on_a_1_5_mm_panel_joint_every_interface(joint: JointSpec) -> None:
+    """A 1.5 mm relief panel: the contact regions are 1.5 mm across Z, and the strip slides
+    along Z, so the edge margin must not be applied along Z (NO_CONTACT_FOR_JOINT everywhere)."""
+    panel = _box((0, 0, 0), (200, 200, 1.5))
+    result = slice_model(make_model(panel), _spec(130.0, joint, axes=[Axis.X, Axis.Y])).result
+    assert len(result.pieces) == 4
+    assert {j.interface_id for j in result.joints} == {i.id for i in result.plan.interfaces}
+    assert len(result.plan.interfaces) == 4
+    assert WarningCode.NO_CONTACT_FOR_JOINT not in _codes(result)
+    assert result.stats.max_overlap_volume == 0.0
+    assert all(p.fits_bed for p in result.pieces)
+    _assert_consistent(result)
+
+
 # --- auto joint sizing ---------------------------------------------------------------------------
 
 

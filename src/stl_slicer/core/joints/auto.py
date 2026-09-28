@@ -4,9 +4,11 @@ Pure; imports only `core.models`. See docs/00_design.md §4.6.
 
 Inputs: ``t`` = the model's smallest extent (its thickness); ``e`` = the typical piece edge =
 ``min(smallest bed dimension - 2 * bed_margin, largest model extent)``. Every length is rounded
-to 0.1 mm; ``clamp(x, lo, hi)`` is the usual saturation. Placement regions are inset by
-``edge_margin`` on every side (isotropically), so on a thin model the margin is additionally
-capped at ``0.25 t``: a margin of ``t / 2`` or more would empty every contact region.
+to 0.1 mm; ``clamp(x, lo, hi)`` is the usual saturation. Placement regions of grid kinds
+(dowel, hexpin, magnet) and the tongue are inset by ``edge_margin`` on every side
+(isotropically), so on a thin model the margin is additionally capped at ``0.25 t``: a margin of
+``t / 2`` or more would empty every contact region. Sliding strips (jigsaw, dovetail, tab) inset
+only across the slide and are unaffected by the thickness, but share the same cap.
 
 Rules (per kind):
 
