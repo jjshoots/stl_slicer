@@ -234,7 +234,7 @@ JointSpec = Annotated[NoJointSpec | DowelJointSpec | DovetailJointSpec, Field(di
 # every spec exposes .depth (0 for none) and .clearance (0 for none) via a shared protocol/property
 
 class MaleSide(StrEnum):       LOWER="lower"; UPPER="upper"
-class PartitionSpec(BaseModel): cuts: AxisCuts | None = None; bed_margin: float = 2.0
+class PartitionSpec(BaseModel): cuts: AxisCuts | None = None; bed_margin: float = 10.0
 class SliceSpec(BaseModel):    print_volume: PrintVolume; partition: PartitionSpec = PartitionSpec()
                                joint: JointSpec = NoJointSpec(); male_side: MaleSide = MaleSide.LOWER
 

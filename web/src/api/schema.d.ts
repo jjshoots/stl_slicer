@@ -698,7 +698,7 @@ export interface components {
             cuts?: components["schemas"]["AxisCuts"] | null;
             /**
              * Bed Margin
-             * @default 2
+             * @default 10
              */
             bed_margin: number;
             /** Axes */
@@ -809,7 +809,7 @@ export interface components {
             print_volume: components["schemas"]["PrintVolume"];
             /**
              * @default {
-             *       "bed_margin": 2,
+             *       "bed_margin": 10,
              *       "axes": [
              *         "x",
              *         "y",

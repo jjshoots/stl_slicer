@@ -1373,7 +1373,7 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Bed Margin",
-            "default": 2.0
+            "default": 10.0
           },
           "axes": {
             "items": {
@@ -1658,7 +1658,7 @@
           "partition": {
             "$ref": "#/components/schemas/PartitionSpec",
             "default": {
-              "bed_margin": 2.0,
+              "bed_margin": 10.0,
               "axes": [
                 "x",
                 "y",

@@ -184,7 +184,7 @@ def test_presets(env: Env) -> None:
     r = env.client.get("/api/presets")
     assert r.status_code == 200
     presets = [PrinterPreset.model_validate(p) for p in r.json()]
-    assert len(presets) == 5
+    assert len(presets) == 11
 
 
 def test_upload_happy_path(env: Env) -> None:
@@ -488,7 +488,7 @@ def test_plan_resolves_auto_joint(real_planner_client: TestClient) -> None:
     assert resolved.auto is False
     # BOUNDS is a 10 mm cube: e = 10 -> head clamps to 6
     assert resolved.head_diameter == 6.0
-    assert plan.limits.max_cell[0] == pytest.approx(100 - resolved.depth - 4)
+    assert plan.limits.max_cell[0] == pytest.approx(100 - resolved.depth - 2 * 10)  # default bed_margin 10
     assert r.json()["resolved_joint"]["auto"] is False
 
 

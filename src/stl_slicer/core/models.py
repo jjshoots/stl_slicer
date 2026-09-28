@@ -395,7 +395,7 @@ class MaleSide(StrEnum):
 
 class PartitionSpec(_Frozen):
     cuts: AxisCuts | None = None
-    bed_margin: float = Field(default=2.0, ge=0)
+    bed_margin: float = Field(default=10.0, ge=0)
     axes: list[Axis] = Field(default_factory=lambda: [Axis.X, Axis.Y, Axis.Z])
     """Axes the planner may cut along. A model larger than the bed along an excluded axis yields
     a CELL_OVERSIZE warning rather than a cut."""

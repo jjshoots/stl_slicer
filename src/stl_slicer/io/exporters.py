@@ -28,7 +28,7 @@ __all__ = [
     "preview_mesh",
 ]
 
-PREVIEW_MAX_TRIANGLES = 400_000
+PREVIEW_MAX_TRIANGLES = 2_000_000
 """Viewer (GLB) meshes above this triangle count are simplified; STL exports are never touched."""
 
 _PREVIEW_REL_TOL = 0.0005  # initial simplify tolerance, as a fraction of the largest bounds extent

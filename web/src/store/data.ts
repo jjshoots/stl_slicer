@@ -48,7 +48,7 @@ export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { ki
 
 export const DEFAULT_SPEC: SliceSpec = {
   print_volume: DEFAULT_PRINT_VOLUME,
-  partition: { cuts: null, bed_margin: 2, axes: ['x', 'y', 'z'] },
+  partition: { cuts: null, bed_margin: 10, axes: ['x', 'y', 'z'] },
   joint: DEFAULT_JOINTS.none,
   male_side: 'lower',
 }
