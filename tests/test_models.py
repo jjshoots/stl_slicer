@@ -97,3 +97,20 @@ def test_cut_plan_cell_lookup_is_cached_and_not_serialised() -> None:
         plan.cell(CellIndex(i=7, j=0, k=0))
     assert "cells_by_id" not in plan.model_dump()
     assert plan == CutPlan.model_validate_json(plan.model_dump_json())
+
+
+def test_jigsaw_spec_validates_knob_shape() -> None:
+    from stl_slicer.core.models import JigsawJointSpec
+
+    assert JigsawJointSpec().kind == "jigsaw"
+    with pytest.raises(ValidationError):
+        JigsawJointSpec(neck_width=10, head_diameter=10)
+    with pytest.raises(ValidationError):
+        JigsawJointSpec(head_diameter=14, depth=6)
+
+
+def test_partition_axes_default_to_all_three() -> None:
+    from stl_slicer.core.models import PartitionSpec
+
+    assert PartitionSpec().axes == [Axis.X, Axis.Y, Axis.Z]
+    assert PartitionSpec(axes=["x", "y"]).axes == [Axis.X, Axis.Y]

@@ -12,3 +12,5 @@ web/node_modules/
 web/dist/
 .DS_Store
 out/
+/*.stl
+candidates/

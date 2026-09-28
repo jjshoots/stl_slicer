@@ -234,7 +234,35 @@ class DovetailJointSpec(_Frozen):
         return self
 
 
-JointSpec = Annotated[NoJointSpec | DowelJointSpec | DovetailJointSpec, Field(discriminator="kind")]
+class JigsawJointSpec(_Frozen):
+    """A jigsaw-puzzle knob: a round head on a neck, drawn in the (u, normal) plane and extruded
+    along v through the cell, like a dovetail but with the classic puzzle-piece silhouette.
+
+    Pieces interlock against pull-apart along the normal and assemble by sliding along v (for cuts
+    along X and Y that is Z: pieces drop in from above, exactly like a flat puzzle)."""
+
+    kind: Literal["jigsaw"] = "jigsaw"
+    neck_width: float = Field(default=8.0, gt=0)
+    head_diameter: float = Field(default=14.0, gt=0)
+    depth: float = Field(default=12.0, gt=0)
+    clearance: float = Field(default=0.15, gt=0)
+    edge_margin: float = Field(default=3.0, ge=0)
+    spacing: float = Field(default=60.0, gt=0)
+
+    @model_validator(mode="after")
+    def _knob(self) -> JigsawJointSpec:
+        if self.head_diameter <= self.neck_width:
+            raise ValueError("head_diameter must exceed neck_width for a jigsaw knob to interlock")
+        if self.depth <= self.head_diameter / 2:
+            raise ValueError(
+                "depth must exceed head_diameter / 2 so the head sits fully past the plane"
+            )
+        return self
+
+
+JointSpec = Annotated[
+    NoJointSpec | DowelJointSpec | DovetailJointSpec | JigsawJointSpec, Field(discriminator="kind")
+]
 
 
 class MaleSide(StrEnum):
@@ -245,6 +273,9 @@ class MaleSide(StrEnum):
 class PartitionSpec(_Frozen):
     cuts: AxisCuts | None = None
     bed_margin: float = Field(default=2.0, ge=0)
+    axes: list[Axis] = Field(default_factory=lambda: [Axis.X, Axis.Y, Axis.Z])
+    """Axes the planner may cut along. A model larger than the bed along an excluded axis yields
+    a CELL_OVERSIZE warning rather than a cut."""
 
 
 class SliceSpec(_Frozen):
