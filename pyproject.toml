@@ -58,6 +58,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.importlinter]
 root_package = "stl_slicer"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Layers: api -> service -> core; io -> core"
@@ -75,3 +76,4 @@ name = "api never touches the geometry kernel"
 type = "forbidden"
 source_modules = ["stl_slicer.api", "stl_slicer.service"]
 forbidden_modules = ["manifold3d", "trimesh"]
+allow_indirect_imports = true

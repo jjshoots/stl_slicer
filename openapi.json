@@ -1,0 +1,1530 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "stl-slicer",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/models": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Upload Model",
+        "description": "Upload a mesh file; 422 if it cannot be made manifold.",
+        "operationId": "upload_model",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_model"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshAsset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Get Model",
+        "description": "Return an uploaded model's metadata.",
+        "operationId": "get_model",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshAsset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Delete Model",
+        "description": "Delete a model and every slice artifact derived from it.",
+        "operationId": "delete_model",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}/mesh.glb": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Get Model Glb",
+        "description": "Return the model mesh in the model frame as binary glTF.",
+        "operationId": "get_model_glb",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model mesh as GLB.",
+            "content": {
+              "model/gltf-binary": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}/plan": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Plan Model",
+        "description": "Compute the cut plan synchronously (live preview).",
+        "operationId": "plan_model",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SliceSpec"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CutPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}/slice": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Slice Model",
+        "description": "Submit a slice job; supersedes any live job for the same model.",
+        "operationId": "slice_model",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SliceSpec"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job",
+        "description": "Return a snapshot of a job.",
+        "operationId": "get_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Job",
+        "description": "Cancel a job (idempotent) and return its snapshot.",
+        "operationId": "cancel_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/pieces.glb": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Pieces Glb",
+        "description": "Return every piece in the model frame; node name = piece_id.",
+        "operationId": "get_pieces_glb",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All pieces as one scene.",
+            "content": {
+              "model/gltf-binary": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/pieces/{piece_id}.stl": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Piece Stl",
+        "description": "Return one piece as STL in the print frame (min z = 0, xy-centred).",
+        "operationId": "get_piece_stl",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Piece Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One piece, print frame.",
+            "content": {
+              "model/stl": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/download.zip": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Download Zip",
+        "description": "Return every piece STL (print frame) plus manifest.json (= SliceResult).",
+        "operationId": "download_zip",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STLs + manifest.json.",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/presets": {
+      "get": {
+        "tags": [
+          "misc"
+        ],
+        "summary": "List Presets",
+        "description": "Return the built-in printer presets.",
+        "operationId": "list_presets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrinterPreset"
+                  },
+                  "type": "array",
+                  "title": "Response List Presets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "misc"
+        ],
+        "summary": "Health",
+        "description": "Liveness probe.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Axis": {
+        "type": "string",
+        "enum": [
+          "x",
+          "y",
+          "z"
+        ],
+        "title": "Axis"
+      },
+      "AxisCuts": {
+        "properties": {
+          "x": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "X"
+          },
+          "y": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Y"
+          },
+          "z": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Z"
+          }
+        },
+        "type": "object",
+        "title": "AxisCuts",
+        "description": "Interior cut positions per axis, in model coordinates."
+      },
+      "Body_upload_model": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "scale": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Scale",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_model"
+      },
+      "Bounds": {
+        "properties": {
+          "min": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Min"
+          },
+          "max": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "max"
+        ],
+        "title": "Bounds"
+      },
+      "Cell": {
+        "properties": {
+          "index": {
+            "$ref": "#/components/schemas/CellIndex"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/Bounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "bounds"
+        ],
+        "title": "Cell"
+      },
+      "CellIndex": {
+        "properties": {
+          "i": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "I"
+          },
+          "j": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "J"
+          },
+          "k": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "i",
+          "j",
+          "k"
+        ],
+        "title": "CellIndex"
+      },
+      "CellLimits": {
+        "properties": {
+          "max_cell": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Max Cell"
+          },
+          "min_cell": {
+            "type": "number",
+            "title": "Min Cell",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_cell"
+        ],
+        "title": "CellLimits",
+        "description": "Per-axis maximum cell size the planner may emit, and the minimum spacing between cuts."
+      },
+      "CutInterface": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "axis": {
+            "$ref": "#/components/schemas/Axis"
+          },
+          "position": {
+            "type": "number",
+            "title": "Position"
+          },
+          "lower": {
+            "$ref": "#/components/schemas/CellIndex"
+          },
+          "upper": {
+            "$ref": "#/components/schemas/CellIndex"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/PlaneFrame"
+          },
+          "extent_u": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Extent U"
+          },
+          "extent_v": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Extent V"
+          },
+          "interior_edges": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "u_min",
+                "u_max",
+                "v_min",
+                "v_max"
+              ]
+            },
+            "type": "array",
+            "title": "Interior Edges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "axis",
+          "position",
+          "lower",
+          "upper",
+          "frame",
+          "extent_u",
+          "extent_v"
+        ],
+        "title": "CutInterface"
+      },
+      "CutPlan": {
+        "properties": {
+          "bounds": {
+            "$ref": "#/components/schemas/Bounds"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/CellLimits"
+          },
+          "cuts": {
+            "$ref": "#/components/schemas/AxisCuts"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/Cell"
+            },
+            "type": "array",
+            "title": "Cells"
+          },
+          "interfaces": {
+            "items": {
+              "$ref": "#/components/schemas/CutInterface"
+            },
+            "type": "array",
+            "title": "Interfaces"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/SliceWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bounds",
+          "limits",
+          "cuts",
+          "cells",
+          "interfaces"
+        ],
+        "title": "CutPlan"
+      },
+      "DovetailJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "dovetail",
+            "title": "Kind",
+            "default": "dovetail"
+          },
+          "neck_width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Neck Width",
+            "default": 8.0
+          },
+          "head_width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Head Width",
+            "default": 12.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 6.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 60.0
+          }
+        },
+        "type": "object",
+        "title": "DovetailJointSpec",
+        "description": "A sliding dovetail: trapezoid in the (u, normal) plane extruded along v through the cell.\n\nPieces interlock against pull-apart along the normal and assemble by sliding along v."
+      },
+      "DowelJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "dowel",
+            "title": "Kind",
+            "default": "dowel"
+          },
+          "diameter": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Diameter",
+            "default": 8.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 6.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 40.0
+          }
+        },
+        "type": "object",
+        "title": "DowelJointSpec",
+        "description": "A cylindrical registration pin straddling the cut plane."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Job": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "default": "queued"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress",
+            "default": 0.0
+          },
+          "step": {
+            "type": "string",
+            "title": "Step",
+            "default": "queued"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SliceResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "model_id"
+        ],
+        "title": "Job",
+        "description": "Mutable: the runner updates progress in place (under its own lock)."
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed",
+          "cancelled"
+        ],
+        "title": "JobStatus"
+      },
+      "JointInfo": {
+        "properties": {
+          "interface_id": {
+            "type": "string",
+            "title": "Interface Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "male_piece": {
+            "type": "string",
+            "title": "Male Piece"
+          },
+          "female_piece": {
+            "type": "string",
+            "title": "Female Piece"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/Placement"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interface_id",
+          "kind",
+          "male_piece",
+          "female_piece",
+          "placement"
+        ],
+        "title": "JointInfo"
+      },
+      "MaleSide": {
+        "type": "string",
+        "enum": [
+          "lower",
+          "upper"
+        ],
+        "title": "MaleSide"
+      },
+      "MeshAsset": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "scale": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Scale"
+          },
+          "triangle_count": {
+            "type": "integer",
+            "title": "Triangle Count"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/Bounds"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/SliceWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "filename",
+          "scale",
+          "triangle_count",
+          "bounds",
+          "volume"
+        ],
+        "title": "MeshAsset"
+      },
+      "NoJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "none",
+            "title": "Kind",
+            "default": "none"
+          }
+        },
+        "type": "object",
+        "title": "NoJointSpec"
+      },
+      "PartitionSpec": {
+        "properties": {
+          "cuts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AxisCuts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bed_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Bed Margin",
+            "default": 2.0
+          }
+        },
+        "type": "object",
+        "title": "PartitionSpec"
+      },
+      "PieceInfo": {
+        "properties": {
+          "piece_id": {
+            "type": "string",
+            "title": "Piece Id"
+          },
+          "cell": {
+            "$ref": "#/components/schemas/CellIndex"
+          },
+          "component": {
+            "type": "integer",
+            "title": "Component",
+            "default": 0
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/Bounds"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume"
+          },
+          "triangle_count": {
+            "type": "integer",
+            "title": "Triangle Count"
+          },
+          "component_count": {
+            "type": "integer",
+            "title": "Component Count"
+          },
+          "fits_bed": {
+            "type": "boolean",
+            "title": "Fits Bed"
+          },
+          "print_offset": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Print Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piece_id",
+          "cell",
+          "bounds",
+          "volume",
+          "triangle_count",
+          "component_count",
+          "fits_bed",
+          "print_offset"
+        ],
+        "title": "PieceInfo"
+      },
+      "Placement": {
+        "properties": {
+          "u": {
+            "type": "number",
+            "title": "U"
+          },
+          "v": {
+            "type": "number",
+            "title": "V"
+          },
+          "rotation": {
+            "type": "number",
+            "title": "Rotation",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "u",
+          "v"
+        ],
+        "title": "Placement"
+      },
+      "PlaneFrame": {
+        "properties": {
+          "origin": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Origin"
+          },
+          "normal": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Normal"
+          },
+          "u": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "U"
+          },
+          "v": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "V"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "normal",
+          "u",
+          "v"
+        ],
+        "title": "PlaneFrame",
+        "description": "An interface plane: origin on the plane, unit normal from the lower to the upper cell,\nand in-plane unit axes u, v (right-handed: u cross v = normal)."
+      },
+      "PrintVolume": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Y"
+          },
+          "z": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Z"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "title": "PrintVolume"
+      },
+      "PrinterPreset": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "print_volume": {
+            "$ref": "#/components/schemas/PrintVolume"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "print_volume"
+        ],
+        "title": "PrinterPreset"
+      },
+      "SliceResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SliceSpec"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/CutPlan"
+          },
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/PieceInfo"
+            },
+            "type": "array",
+            "title": "Pieces"
+          },
+          "joints": {
+            "items": {
+              "$ref": "#/components/schemas/JointInfo"
+            },
+            "type": "array",
+            "title": "Joints"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/SliceStats"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/SliceWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "model_id",
+          "spec",
+          "plan",
+          "pieces",
+          "joints",
+          "stats"
+        ],
+        "title": "SliceResult"
+      },
+      "SliceSpec": {
+        "properties": {
+          "print_volume": {
+            "$ref": "#/components/schemas/PrintVolume"
+          },
+          "partition": {
+            "$ref": "#/components/schemas/PartitionSpec",
+            "default": {
+              "bed_margin": 2.0
+            }
+          },
+          "joint": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NoJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/DowelJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/DovetailJointSpec"
+              }
+            ],
+            "title": "Joint",
+            "default": {
+              "kind": "none"
+            },
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "dovetail": "#/components/schemas/DovetailJointSpec",
+                "dowel": "#/components/schemas/DowelJointSpec",
+                "none": "#/components/schemas/NoJointSpec"
+              }
+            }
+          },
+          "male_side": {
+            "$ref": "#/components/schemas/MaleSide",
+            "default": "lower"
+          }
+        },
+        "type": "object",
+        "required": [
+          "print_volume"
+        ],
+        "title": "SliceSpec"
+      },
+      "SliceStats": {
+        "properties": {
+          "piece_count": {
+            "type": "integer",
+            "title": "Piece Count"
+          },
+          "input_volume": {
+            "type": "number",
+            "title": "Input Volume"
+          },
+          "output_volume": {
+            "type": "number",
+            "title": "Output Volume"
+          },
+          "max_overlap_volume": {
+            "type": "number",
+            "title": "Max Overlap Volume"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piece_count",
+          "input_volume",
+          "output_volume",
+          "max_overlap_volume",
+          "duration_s"
+        ],
+        "title": "SliceStats"
+      },
+      "SliceWarning": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/WarningCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "SliceWarning"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WarningCode": {
+        "type": "string",
+        "enum": [
+          "cell_oversize",
+          "piece_oversize",
+          "disconnected_piece",
+          "no_contact_for_joint",
+          "joint_clipped",
+          "assembly_conflict",
+          "vertices_merged"
+        ],
+        "title": "WarningCode"
+      }
+    }
+  }
+}

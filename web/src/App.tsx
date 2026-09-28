@@ -1,122 +1,95 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import type { ReactElement } from 'react'
+import { downloadZipUrl, modelMeshUrl, piecesGlbUrl, setOnModelGone } from './api/client'
+import { AppShell } from './components/layout/AppShell'
+import { DownloadBar } from './components/pieces/DownloadBar'
+import { PiecesList } from './components/pieces/PiecesList'
+import { SpecPanel } from './components/spec/SpecPanel'
+import { Viewer } from './components/viewer/Viewer'
+import { useModelUpload } from './hooks/useModelUpload'
+import { usePlanPreview } from './hooks/usePlanPreview'
+import { usePresets } from './hooks/usePresets'
+import { useSliceJob } from './hooks/useSliceJob'
+import { useDataStore } from './store/data'
+import { useViewStore } from './store/view'
 
-function App() {
-  const [count, setCount] = useState(0)
+setOnModelGone(() => useDataStore.getState().reset())
+
+export function App(): ReactElement {
+  const model = useDataStore((s) => s.model)
+  const spec = useDataStore((s) => s.spec)
+  const plan = useDataStore((s) => s.plan)
+  const job = useDataStore((s) => s.job)
+  const result = useDataStore((s) => s.result)
+  const uploading = useDataStore((s) => s.uploading)
+  const uploadError = useDataStore((s) => s.uploadError)
+
+  const explode = useViewStore((s) => s.explode)
+  const showPlanes = useViewStore((s) => s.showPlanes)
+  const hidden = useViewStore((s) => s.hidden)
+  const selected = useViewStore((s) => s.selected)
+  const setExplode = useViewStore((s) => s.setExplode)
+  const setShowPlanes = useViewStore((s) => s.setShowPlanes)
+  const toggleHidden = useViewStore((s) => s.toggleHidden)
+  const select = useViewStore((s) => s.select)
+
+  usePlanPreview()
+  const presets = usePresets()
+  const { upload } = useModelUpload()
+  const { submit, cancel } = useSliceJob()
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <AppShell
+      sidebar={
+        <>
+          <SpecPanel
+            presets={presets}
+            uploading={uploading}
+            uploadError={uploadError}
+            onUpload={(file, scale) => {
+              void upload(file, scale)
+            }}
+          />
+          <PiecesList
+            pieces={result?.pieces ?? []}
+            selected={selected}
+            hidden={hidden}
+            warnings={result?.warnings ?? []}
+            onSelect={select}
+            onToggleHidden={toggleHidden}
+          />
+        </>
+      }
+      viewer={
+        <Viewer
+          modelUrl={model ? modelMeshUrl(model.model_id) : undefined}
+          piecesUrl={result ? piecesGlbUrl(result.job_id) : undefined}
+          pieces={result?.pieces}
+          plan={result?.plan ?? plan ?? undefined}
+          bed={spec.print_volume}
+          explode={explode}
+          showPlanes={showPlanes}
+          hidden={hidden}
+          selected={selected ?? undefined}
+          onSelect={(id) => select(selected === id ? null : id)}
+        />
+      }
+      footer={
+        <DownloadBar
+          explode={explode}
+          onExplode={setExplode}
+          showPlanes={showPlanes}
+          onShowPlanes={setShowPlanes}
+          job={job}
+          canSlice={model !== null && plan !== null}
+          onSlice={() => {
+            void submit()
+          }}
+          onCancel={() => {
+            void cancel()
+          }}
+          downloadUrl={result ? downloadZipUrl(result.job_id) : null}
+        />
+      }
+    />
   )
 }
-
-export default App
