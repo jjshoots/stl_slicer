@@ -21,7 +21,7 @@ export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { ki
     auto: true,
     neck_width: 8,
     head_diameter: 14,
-    depth: 12,
+    depth: 18,
     clearance: 0.15,
     edge_margin: 3,
     spacing: 60,

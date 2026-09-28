@@ -122,3 +122,11 @@ def test_joint_specs_carry_auto_flag_and_plan_carries_resolved_joint() -> None:
     assert DowelJointSpec().auto is False
     assert JigsawJointSpec(auto=True).auto is True
     assert "resolved_joint" in CutPlan.model_fields
+
+
+def test_auto_specs_skip_shape_validation() -> None:
+    from stl_slicer.core.models import JigsawJointSpec
+
+    spec = JigsawJointSpec(auto=True, neck_width=8, head_diameter=14, depth=12)
+    assert spec.auto and spec.depth == 12
+    assert DovetailJointSpec(auto=True, neck_width=10, head_width=10).auto

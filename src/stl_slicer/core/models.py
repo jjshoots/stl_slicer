@@ -209,6 +209,8 @@ class DovetailJointSpec(_Frozen):
 
     @model_validator(mode="after")
     def _flared(self) -> DovetailJointSpec:
+        if self.auto:  # numbers are ignored and re-derived; do not reject them
+            return self
         if self.head_width <= self.neck_width:
             raise ValueError("head_width must exceed neck_width for a dovetail to interlock")
         return self
@@ -234,6 +236,8 @@ class JigsawJointSpec(_Frozen):
 
     @model_validator(mode="after")
     def _knob(self) -> JigsawJointSpec:
+        if self.auto:  # numbers are ignored and re-derived; do not reject them
+            return self
         if self.head_diameter <= self.neck_width:
             raise ValueError("head_diameter must exceed neck_width for a jigsaw knob to interlock")
         if self.depth < self.head_diameter:

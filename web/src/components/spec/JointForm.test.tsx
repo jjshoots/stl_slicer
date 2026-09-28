@@ -103,7 +103,7 @@ describe('JointForm', () => {
       auto: true,
       neck_width: 8,
       head_diameter: 14,
-      depth: 12,
+      depth: 18,
       clearance: 0.15,
       edge_margin: 3,
       spacing: 60,
@@ -120,7 +120,7 @@ describe('JointForm', () => {
       expect(screen.getByText(`${label} (mm)`)).not.toBeNull()
     }
     expect(inputValue('Head diameter')).toBe('14')
-    expect(inputValue('Depth')).toBe('12')
+    expect(inputValue('Depth')).toBe('18')
     expect(screen.queryByLabelText('Head width')).toBeNull()
     expect(screen.getByText(JIGSAW_HELP)).not.toBeNull()
     expect(screen.queryByLabelText('Male side')).not.toBeNull()
@@ -186,7 +186,7 @@ describe('JointForm auto size', () => {
   it('shows the spec numbers while no plan exists yet', () => {
     render(<JointForm value={DEFAULT_JOINTS.jigsaw} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
     expect(inputValue('Head diameter')).toBe('14')
-    expect(inputValue('Depth')).toBe('12')
+    expect(inputValue('Depth')).toBe('18')
   })
 
   it('shows the resolved values from the plan while auto is on', () => {
