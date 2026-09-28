@@ -2,7 +2,7 @@
 export const PALETTE: readonly string[] = Array.from({ length: 12 }, (_, i) => hsl((i * 30 + 200) % 360, 65, 58))
 
 function hsl(h: number, s: number, l: number): string {
-  return `hsl(${h} ${s}% ${l}%)`
+  return `hsl(${h}, ${s}%, ${l}%)`
 }
 
 export function pieceColor(index: number): string {

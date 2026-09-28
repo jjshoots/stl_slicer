@@ -51,6 +51,8 @@ class JobRunner(Protocol):
 
     def cancel(self, job_id: str) -> Job: ...
 
+    def cancel_model(self, model_id: str) -> list[Job]: ...
+
     def shutdown(self) -> None: ...
 
 
@@ -136,6 +138,16 @@ class ThreadJobRunner:
             entry = self._entries[job_id]
             self._cancel_locked(entry)
             return entry.job.model_copy(deep=True)
+
+    def cancel_model(self, model_id: str) -> list[Job]:
+        """Cancel every live job of a model (used when the model is deleted); returns snapshots."""
+        with self._lock:
+            cancelled = []
+            for entry in self._entries.values():
+                if entry.job.model_id == model_id and entry.job.status in _LIVE:
+                    self._cancel_locked(entry)
+                    cancelled.append(entry.job.model_copy(deep=True))
+            return cancelled
 
     def wait(self, job_id: str, timeout: float | None = None) -> Job:
         """Block until a job's worker has finished, then return its snapshot.

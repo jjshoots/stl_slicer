@@ -40,7 +40,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Model
-         * @description Delete a model and every slice artifact derived from it.
+         * @description Delete a model, cancel its live jobs, and drop every slice artifact derived from it.
          */
         delete: operations["delete_model"];
         options?: never;

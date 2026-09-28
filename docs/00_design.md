@@ -1,5 +1,12 @@
 # 00 — Design: stl-slicer
 
+v3 — build-time revisions (2026-09-28): dovetail strips span exactly the interface rect (no 1 mm
+overshoot; `JOINT_CLIPPED` now only fires when a tab would enter a third cell); `JOINT_CLIPPED`
+volume is measured against the plan's outer bounds; `check_pieces` treats overlaps ≤ 1e-9·input as
+kernel noise; the hollow-box fixture in §9 uses a 4 mm dowel (a 10 mm wall cannot host the default
+8 mm pin, which correctly yields `NO_CONTACT_FOR_JOINT`); deleting a model cancels its live jobs;
+planner enforces `min_cell` only for explicit cuts. v1/v2 history below is unchanged.
+
 v2 — post-review revision (2026-09-28): joints clipped to the female cell and placement regions
 inset from interior edges (B1/B2); dovetail replaces the misnamed jigsaw; discriminated joint specs;
 slicing split into pure functions; scale moved to upload; frames, stores, cancel, memory caps

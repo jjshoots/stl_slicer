@@ -371,3 +371,17 @@ def test_real_cancel_token_with_fake_slicer() -> None:
         assert runner.wait(done.job_id, timeout=TIMEOUT).status is JobStatus.DONE
     finally:
         runner.shutdown()
+
+
+def test_cancel_model_cancels_only_that_models_live_jobs(make_runner: Any) -> None:
+    release = threading.Event()  # never set
+    runner, _ = make_runner(_Slicer(_poll_until_released(release)), "m1", "m2")
+    running = runner.submit("m1", SPEC)
+    _until(_running(runner, running.job_id))
+    other = runner.submit("m2", SPEC)  # queued behind the single worker
+    cancelled = runner.cancel_model("m1")
+    assert [j.job_id for j in cancelled] == [running.job_id]
+    assert runner.wait(running.job_id, timeout=TIMEOUT).status is JobStatus.CANCELLED
+    assert runner.get(other.job_id).status in (JobStatus.QUEUED, JobStatus.RUNNING)
+    assert runner.cancel_model("m1") == []
+    release.set()

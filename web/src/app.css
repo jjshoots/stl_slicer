@@ -88,7 +88,12 @@ body {
   background: var(--bg);
 }
 
-.viewer-pane canvas {
+.viewer {
+  position: absolute;
+  inset: 0;
+}
+
+.viewer canvas {
   display: block;
   outline: none;
 }

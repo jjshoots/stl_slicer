@@ -100,6 +100,9 @@ class FakeRunner:
             job.step = "cancelled"
         return job.model_copy(deep=True)
 
+    def cancel_model(self, model_id: str) -> list[Job]:
+        return [self.cancel(j.job_id) for j in list(self.jobs.values()) if j.model_id == model_id]
+
     def shutdown(self) -> None:
         self.shut_down = True
 
@@ -227,6 +230,13 @@ def test_delete_model(env: Env) -> None:
     assert r.content == b""
     assert env.artifacts.deleted_models == ["m1"]
     assert env.client.get("/api/models/m1").status_code == 404
+
+
+def test_delete_model_cancels_its_live_job(env: Env) -> None:
+    _upload(env.client)
+    job = env.client.post("/api/models/m1/slice", json=SPEC).json()
+    assert env.client.delete("/api/models/m1").status_code == 204
+    assert env.client.get(f"/api/jobs/{job['job_id']}").json()["status"] == "cancelled"
 
 
 def test_plan(env: Env) -> None:

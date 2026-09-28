@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 
 export interface UploadFormProps {
@@ -10,7 +10,8 @@ export interface UploadFormProps {
 export function UploadForm({ uploading, error, onUpload }: UploadFormProps): ReactElement {
   const fileId = useId()
   const scaleId = useId()
-  const [file, setFile] = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [pickedName, setPickedName] = useState<string | null>(null)
   const [scaleText, setScaleText] = useState('1')
   const scale = Number(scaleText)
   const scaleValid = scaleText.trim() !== '' && Number.isFinite(scale) && scale > 0
@@ -18,6 +19,8 @@ export function UploadForm({ uploading, error, onUpload }: UploadFormProps): Rea
     <form
       onSubmit={(e) => {
         e.preventDefault()
+        // Read from the input at submit time: some file pickers set `files` without a change event.
+        const file = fileRef.current?.files?.[0] ?? null
         if (file && scaleValid && !uploading) onUpload(file, scale)
       }}
     >
@@ -27,7 +30,8 @@ export function UploadForm({ uploading, error, onUpload }: UploadFormProps): Rea
           id={fileId}
           type="file"
           accept=".stl,.obj,.3mf,.glb"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          ref={fileRef}
+          onChange={(e) => setPickedName(e.target.files?.[0]?.name ?? null)}
         />
       </div>
       <div className="field">
@@ -37,14 +41,15 @@ export function UploadForm({ uploading, error, onUpload }: UploadFormProps): Rea
           type="number"
           aria-label="Scale"
           min={0.0001}
-          step={0.1}
+          step="any"
           value={scaleText}
           onChange={(e) => setScaleText(e.target.value)}
         />
       </div>
-      <button type="submit" className="btn primary block" disabled={uploading || file === null || !scaleValid}>
+      <button type="submit" className="btn primary block" disabled={uploading || !scaleValid}>
         {uploading ? 'Uploading…' : 'Upload'}
       </button>
+      {pickedName === null && !error && <p className="hint">Choose an STL, OBJ, 3MF or GLB file.</p>}
       {error && <p className="error">{error}</p>}
     </form>
   )

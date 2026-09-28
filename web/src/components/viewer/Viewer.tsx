@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react'
 import type { ReactElement } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { Grid, OrbitControls } from '@react-three/drei'
+import type { Vector3 } from 'three'
 import type { CutPlan, PieceInfo, PrintVolume, Vec3 } from '../../api/types'
 import { boundsCenter, boundsSize } from '../../lib/explode'
 import { BedOutline } from './BedOutline'
@@ -38,14 +39,20 @@ function framing(plan: CutPlan | undefined, bed: PrintVolume): Framing {
 }
 
 /** Reposition the camera whenever the framed radius changes (Canvas `camera` only applies on mount). */
-function CameraRig({ radius }: { radius: number }): null {
+function CameraRig({ radius, targetY }: { radius: number; targetY: number }): null {
   const camera = useThree((s) => s.camera)
+  const controls = useThree((s) => s.controls) as { target: Vector3; update(): void } | null
   useEffect(() => {
-    camera.position.set(radius * 1.6, radius * 1.2, radius * 1.6)
+    camera.position.set(radius * 2.4, radius * 1.8, radius * 2.4)
     camera.near = radius / 100
     camera.far = radius * 20
     camera.updateProjectionMatrix()
-  }, [camera, radius])
+    camera.lookAt(0, targetY, 0)
+    if (controls) {
+      controls.target.set(0, targetY, 0)
+      controls.update()
+    }
+  }, [camera, controls, radius, targetY])
   return null
 }
 
@@ -58,13 +65,13 @@ export function Viewer(props: ViewerProps): ReactElement {
   const empty = !modelUrl && !piecesUrl
 
   return (
-    <div className="viewer-pane">
-      <Canvas camera={{ position: [r * 1.6, r * 1.2, r * 1.6], near: r / 100, far: r * 20, fov: 45 }}>
+    <div className="viewer">
+      <Canvas camera={{ position: [r * 2.4, r * 1.8, r * 2.4], near: r / 100, far: r * 20, fov: 45 }}>
         <color attach="background" args={['#121417']} />
         <ambientLight intensity={0.35} />
         <hemisphereLight args={['#dfe8f0', '#20242a', 0.6]} />
         <directionalLight position={[r * 2, r * 3, r * 1.5]} intensity={1.6} />
-        <CameraRig radius={r} />
+        <CameraRig radius={r} targetY={f.height / 2} />
         <Grid
           infiniteGrid
           cellSize={10}

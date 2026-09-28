@@ -41,9 +41,12 @@ def get_model(model_id: str, models: ModelsDep) -> MeshAsset:
     response_model=None,
     operation_id="delete_model",
 )
-def delete_model(model_id: str, models: ModelsDep, artifacts: ArtifactsDep) -> Response:
-    """Delete a model and every slice artifact derived from it."""
+def delete_model(
+    model_id: str, models: ModelsDep, artifacts: ArtifactsDep, runner: RunnerDep
+) -> Response:
+    """Delete a model, cancel its live jobs, and drop every slice artifact derived from it."""
     models.delete(model_id)
+    runner.cancel_model(model_id)
     artifacts.delete_model(model_id)
     return Response(status_code=204)
 

@@ -94,7 +94,7 @@
           "models"
         ],
         "summary": "Delete Model",
-        "description": "Delete a model and every slice artifact derived from it.",
+        "description": "Delete a model, cancel its live jobs, and drop every slice artifact derived from it.",
         "operationId": "delete_model",
         "parameters": [
           {
