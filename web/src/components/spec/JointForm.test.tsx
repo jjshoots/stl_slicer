@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import type { DowelJointSpec, DovetailJointSpec } from '../../api/types'
+import type { DowelJointSpec, DovetailJointSpec, JigsawJointSpec } from '../../api/types'
 import { DEFAULT_JOINTS } from '../../store/data'
-import { JointForm } from './JointForm'
+import { JointForm, jigsawErrors } from './JointForm'
 
 const DOWEL_LABELS = ['Diameter', 'Depth', 'Clearance', 'Edge margin', 'Spacing']
 const DOVETAIL_LABELS = ['Neck width', 'Head width', 'Depth', 'Clearance', 'Edge margin', 'Spacing']
+const JIGSAW_LABELS = ['Neck width', 'Head diameter', 'Depth', 'Clearance', 'Edge margin', 'Spacing']
+const JIGSAW_HELP = 'Puzzle-piece knobs in the cut plane; pieces drop in along the slide axis (Z for X/Y cuts)'
 
 function inputValue(label: string): string {
   return (screen.getByLabelText(label) as HTMLInputElement).value
@@ -77,5 +79,62 @@ describe('JointForm', () => {
     )
     fireEvent.change(screen.getByLabelText('Male side'), { target: { value: 'upper' } })
     expect(onMaleSideChange).toHaveBeenCalledWith('upper')
+  })
+
+  it('shows every joint dimension with a mm unit in its visible label', () => {
+    render(<JointForm value={DEFAULT_JOINTS.dowel} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    for (const label of DOWEL_LABELS) expect(screen.getByText(`${label} (mm)`)).not.toBeNull()
+  })
+
+  it('lists Jigsaw knobs in the kind select and switching to it emits the backend defaults', () => {
+    const onChange = vi.fn()
+    render(<JointForm value={DEFAULT_JOINTS.none} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    expect(screen.getByRole('option', { name: 'Jigsaw knobs' })).not.toBeNull()
+    fireEvent.change(screen.getByLabelText('Joint kind'), { target: { value: 'jigsaw' } })
+    expect(onChange).toHaveBeenCalledWith({
+      kind: 'jigsaw',
+      neck_width: 8,
+      head_diameter: 14,
+      depth: 12,
+      clearance: 0.15,
+      edge_margin: 3,
+      spacing: 60,
+    })
+  })
+
+  it('renders exactly the jigsaw fields, the help line and the male side select', () => {
+    const { container } = render(
+      <JointForm value={DEFAULT_JOINTS.jigsaw} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />,
+    )
+    expect(container.querySelectorAll('input[type="number"]').length).toBe(JIGSAW_LABELS.length)
+    for (const label of JIGSAW_LABELS) {
+      expect(screen.queryByLabelText(label)).not.toBeNull()
+      expect(screen.getByText(`${label} (mm)`)).not.toBeNull()
+    }
+    expect(inputValue('Head diameter')).toBe('14')
+    expect(inputValue('Depth')).toBe('12')
+    expect(screen.queryByLabelText('Head width')).toBeNull()
+    expect(screen.getByText(JIGSAW_HELP)).not.toBeNull()
+    expect(screen.queryByLabelText('Male side')).not.toBeNull()
+    expect(container.querySelectorAll('.error').length).toBe(0)
+  })
+
+  it('flags head diameter <= neck width and depth <= head diameter / 2 like the backend', () => {
+    expect(jigsawErrors(DEFAULT_JOINTS.jigsaw)).toEqual([])
+    expect(jigsawErrors({ ...DEFAULT_JOINTS.jigsaw, head_diameter: 8 })).toEqual(['Head diameter must exceed neck width'])
+    expect(jigsawErrors({ ...DEFAULT_JOINTS.jigsaw, depth: 7 })).toEqual(['Depth must exceed half the head diameter'])
+    expect(jigsawErrors({ ...DEFAULT_JOINTS.jigsaw, head_diameter: 8, depth: 4 })).toHaveLength(2)
+
+    const value: JigsawJointSpec = { ...DEFAULT_JOINTS.jigsaw, neck_width: 14, depth: 7 }
+    render(<JointForm value={value} maleSide="lower" onChange={vi.fn()} onMaleSideChange={vi.fn()} />)
+    expect(screen.getByText('Head diameter must exceed neck width')).not.toBeNull()
+    expect(screen.getByText('Depth must exceed half the head diameter')).not.toBeNull()
+  })
+
+  it('editing a jigsaw field emits the patched spec', () => {
+    const onChange = vi.fn()
+    render(<JointForm value={DEFAULT_JOINTS.jigsaw} maleSide="lower" onChange={onChange} onMaleSideChange={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Head diameter'), { target: { value: '16' } })
+    expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_JOINTS.jigsaw, head_diameter: 16 })
   })
 })

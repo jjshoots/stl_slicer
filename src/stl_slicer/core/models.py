@@ -244,7 +244,7 @@ class JigsawJointSpec(_Frozen):
     kind: Literal["jigsaw"] = "jigsaw"
     neck_width: float = Field(default=8.0, gt=0)
     head_diameter: float = Field(default=14.0, gt=0)
-    depth: float = Field(default=12.0, gt=0)
+    depth: float = Field(default=18.0, gt=0)
     clearance: float = Field(default=0.15, gt=0)
     edge_margin: float = Field(default=3.0, ge=0)
     spacing: float = Field(default=60.0, gt=0)
@@ -253,9 +253,9 @@ class JigsawJointSpec(_Frozen):
     def _knob(self) -> JigsawJointSpec:
         if self.head_diameter <= self.neck_width:
             raise ValueError("head_diameter must exceed neck_width for a jigsaw knob to interlock")
-        if self.depth <= self.head_diameter / 2:
+        if self.depth < self.head_diameter:
             raise ValueError(
-                "depth must exceed head_diameter / 2 so the head sits fully past the plane"
+                "depth must be at least head_diameter so the whole head sits past the plane"
             )
         return self
 

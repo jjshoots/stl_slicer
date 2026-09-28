@@ -1,7 +1,11 @@
-/** Millimetres with a sensible number of decimals. */
-export function formatMm(v: number, digits = 1): string {
-  return `${v.toFixed(digits)} mm`
+/** A length in millimetres with a sensible number of decimals, e.g. `12.5 mm`. */
+export function formatLength(mm: number, digits = 1): string {
+  if (!Number.isFinite(mm)) return '—'
+  return `${mm.toFixed(digits)} mm`
 }
+
+/** @deprecated alias of {@link formatLength}. */
+export const formatMm = formatLength
 
 /** Volume in mm³ or cm³ depending on magnitude. */
 export function formatVolume(mm3: number): string {
@@ -10,8 +14,10 @@ export function formatVolume(mm3: number): string {
   return `${mm3.toFixed(1)} mm³`
 }
 
+/** A W × D × H size in millimetres, e.g. `36.0 × 36.0 × 36.0 mm`. */
 export function formatSize(size: readonly [number, number, number], digits = 1): string {
-  return size.map((s) => s.toFixed(digits)).join(' × ')
+  if (!size.every((s) => Number.isFinite(s))) return '—'
+  return `${size.map((s) => s.toFixed(digits)).join(' × ')} mm`
 }
 
 export function formatPercent(fraction: number): string {

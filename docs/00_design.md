@@ -1,5 +1,9 @@
 # 00 — Design: stl-slicer
 
+v4 — slide-axis rule (2026-09-28): strip joints (dovetail, jigsaw) extrude along the in-plane
+axis with the smaller extent and draw their profile across the larger one (ties → v), so flat
+models assemble like a flat puzzle and `ASSEMBLY_CONFLICT` asks the generator for the slide axis.
+
 v3 — build-time revisions (2026-09-28): dovetail strips span exactly the interface rect (no 1 mm
 overshoot; `JOINT_CLIPPED` now only fires when a tab would enter a third cell); `JOINT_CLIPPED`
 volume is measured against the plan's outer bounds; `check_pieces` treats overlaps ≤ 1e-9·input as
@@ -137,7 +141,10 @@ ProfileExtrusion), `DovetailJoint` (`kind="dovetail"`): trapezoid in the (u, n) 
 n = 0, head width at n = depth — extruded along the *full* v-extent of the rect (through the cell,
 so assembly is a slide along v); female = trapezoid offset by clearance, same length + 2·clearance;
 placements = `strip_placements` along u with `spacing`, each strip's u-interval inside the
-region's u-projection. Slide axis = `v` of the frame (Z for X/Y interfaces, Y for Z interfaces).
+region's projection perpendicular to the slide. Slide axis (dovetail and jigsaw alike) = the
+in-plane axis with the **smaller** extent (the model's thickness); ties → `v`. The profile is drawn
+across the larger extent. A flat model therefore slides along Z for both X and Y cuts (a flat
+puzzle); a tall bar cut along Z slides along the shorter of X/Y (ties → Y).
 Pieces whose dovetails have different slide axes get `ASSEMBLY_CONFLICT` (a warning; assembly
 order is the user's problem, but they are told).
 

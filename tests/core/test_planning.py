@@ -205,6 +205,67 @@ def test_flat_bounds_single_cell_ok_but_degenerate_interface_raises() -> None:
         plan_grid(flat, CellLimits(max_cell=(40, 200, 200)))
 
 
+# --- cut-axis selection ----------------------------------------------------------------------
+
+TALL = Bounds(min=(0, 0, 0), max=(100, 100, 300))
+
+
+def test_excluded_axis_gets_no_cuts_and_warns_oversize() -> None:
+    limits = CellLimits(max_cell=(60, 60, 60))
+    plan = plan_grid(TALL, limits, axes=[Axis.X, Axis.Y])
+    assert plan.cuts.z == []
+    assert plan.cuts.x == pytest.approx([50.0]) and plan.cuts.y == pytest.approx([50.0])
+    assert _oversize(plan) == ["z"]
+    assert len(plan.cells) == 4
+    assert all(c.bounds.min[2] == 0 and c.bounds.max[2] == 300 for c in plan.cells)
+    assert {i.axis for i in plan.interfaces} == {Axis.X, Axis.Y}
+    assert plan == plan_grid(TALL, limits, axes=[Axis.Y, Axis.X])  # order is irrelevant
+
+
+def test_excluded_axis_within_max_cell_does_not_warn() -> None:
+    plan = plan_grid(BOX, CellLimits(max_cell=(60, 60, 60)), axes=[Axis.X])
+    assert plan.cuts.x == pytest.approx([50.0]) and plan.cuts.y == [] and plan.cuts.z == []
+    assert plan.warnings == []
+
+
+def test_axes_none_or_all_is_the_default() -> None:
+    limits = CellLimits(max_cell=(30, 30, 30))
+    assert plan_grid(BOX, limits, axes=None) == plan_grid(BOX, limits)
+    assert plan_grid(BOX, limits, axes=AXES) == plan_grid(BOX, limits)
+
+
+def test_explicit_cut_on_excluded_axis_raises() -> None:
+    with pytest.raises(PlanError, match="excluded"):
+        plan_grid(TALL, BIG, AxisCuts(z=[150]), axes=[Axis.X, Axis.Y])
+    # an empty list on the excluded axis is fine (and still reports oversize)
+    plan = plan_grid(TALL, CellLimits(max_cell=(200, 200, 200)), AxisCuts(x=[50]), axes=[Axis.X])
+    assert plan.cuts.x == [50] and plan.cuts.z == []
+    assert _oversize(plan) == ["z"]
+
+
+@given(auto_cases(), st.sets(st.sampled_from(AXES)))
+@settings(max_examples=100, deadline=None)
+def test_plan_grid_axes_properties(case: tuple[Bounds, CellLimits], allowed: set[Axis]) -> None:
+    bounds, limits = case
+    plan = plan_grid(bounds, limits, axes=sorted(allowed))
+    oversize = _oversize(plan)
+    for a in AXES:
+        o = a.ordinal
+        cuts = plan.cuts.for_axis(a)
+        lo, hi = bounds.min[o], bounds.max[o]
+        boundaries = sorted(
+            {c.bounds.min[o] for c in plan.cells} | {c.bounds.max[o] for c in plan.cells}
+        )
+        assert boundaries == [lo, *cuts, hi]  # exact tiling regardless of restriction
+        if a in allowed:
+            assert cuts == even_cuts(lo, hi, limits.max_cell[o])
+            assert a.value not in oversize
+        else:
+            assert cuts == []
+            assert (a.value in oversize) == (hi - lo > limits.max_cell[o] * (1 + 1e-9))
+    assert all(i.axis in allowed for i in plan.interfaces)
+
+
 # --- frames ----------------------------------------------------------------------------------
 
 

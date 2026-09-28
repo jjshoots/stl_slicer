@@ -15,11 +15,20 @@ export const DEFAULT_JOINTS: { [K in JointSpec['kind']]: Extract<JointSpec, { ki
     edge_margin: 3,
     spacing: 60,
   },
+  jigsaw: {
+    kind: 'jigsaw',
+    neck_width: 8,
+    head_diameter: 14,
+    depth: 12,
+    clearance: 0.15,
+    edge_margin: 3,
+    spacing: 60,
+  },
 }
 
 export const DEFAULT_SPEC: SliceSpec = {
   print_volume: DEFAULT_PRINT_VOLUME,
-  partition: { cuts: null, bed_margin: 2 },
+  partition: { cuts: null, bed_margin: 2, axes: ['x', 'y', 'z'] },
   joint: DEFAULT_JOINTS.none,
   male_side: 'lower',
 }

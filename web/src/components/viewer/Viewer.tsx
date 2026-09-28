@@ -10,6 +10,7 @@ import { CellBoxes } from './CellBoxes'
 import { CutPlanes } from './CutPlanes'
 import { ModelMesh } from './ModelMesh'
 import { PiecesScene } from './PiecesScene'
+import { ViewerHud } from './ViewerHud'
 
 export interface ViewerProps {
   modelUrl?: string
@@ -22,6 +23,9 @@ export interface ViewerProps {
   hidden: Set<string>
   selected?: string
   onSelect(id: string): void
+  /** Overlay data (kept as props so the viewer stays store-free). */
+  modelSize?: Vec3
+  pieceCount?: number
 }
 
 interface Framing {
@@ -57,7 +61,7 @@ function CameraRig({ radius, targetY }: { radius: number; targetY: number }): nu
 }
 
 export function Viewer(props: ViewerProps): ReactElement {
-  const { modelUrl, piecesUrl, pieces, plan, bed, explode, showPlanes, hidden, selected, onSelect } = props
+  const { modelUrl, piecesUrl, pieces, plan, bed, explode, showPlanes, hidden, selected, onSelect, modelSize, pieceCount } = props
   // Cheap to recompute each render; CameraRig/OrbitControls only react to the derived numbers,
   // so live plan previews with unchanged bounds don't reset the camera.
   const f = framing(plan, bed)
@@ -107,6 +111,7 @@ export function Viewer(props: ViewerProps): ReactElement {
           </group>
         </group>
       </Canvas>
+      <ViewerHud modelSize={modelSize} pieceCount={pieceCount} bed={bed} />
       {empty && <div className="viewer-empty">Upload a model to begin</div>}
     </div>
   )

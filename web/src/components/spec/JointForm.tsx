@@ -20,11 +20,13 @@ interface NumberFieldProps {
   value: number
   min?: number
   step?: number
+  /** Display unit appended to the visible label; every joint dimension is in millimetres. */
+  unit?: string
   onChange(value: number): void
 }
 
 /** Number input that keeps intermediate text locally and commits only finite numbers. */
-function NumberField({ label, value, min, step, onChange }: NumberFieldProps): ReactElement {
+function NumberField({ label, value, min, step, unit = 'mm', onChange }: NumberFieldProps): ReactElement {
   const id = useId()
   const [text, setText] = useState(String(value))
   const [prev, setPrev] = useState(value)
@@ -34,7 +36,9 @@ function NumberField({ label, value, min, step, onChange }: NumberFieldProps): R
   }
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label} ({unit})
+      </label>
       <input
         id={id}
         type="number"
@@ -94,6 +98,38 @@ function DovetailFields({ value, onChange }: JointFieldsProps<Extract<JointSpec,
   )
 }
 
+function JigsawFields({ value, onChange }: JointFieldsProps<Extract<JointSpec, { kind: 'jigsaw' }>>): ReactElement {
+  const errors = jigsawErrors(value)
+  return (
+    <>
+      <div className="field-row">
+        <NumberField label="Neck width" value={value.neck_width} min={0} step={0.5} onChange={(neck_width) => onChange({ ...value, neck_width })} />
+        <NumberField label="Head diameter" value={value.head_diameter} min={0} step={0.5} onChange={(head_diameter) => onChange({ ...value, head_diameter })} />
+        <NumberField label="Depth" value={value.depth} min={0} step={0.5} onChange={(depth) => onChange({ ...value, depth })} />
+      </div>
+      {errors.map((e) => (
+        <p key={e} className="error">
+          {e}
+        </p>
+      ))}
+      <div className="field-row">
+        <NumberField label="Clearance" value={value.clearance} min={0} step={0.05} onChange={(clearance) => onChange({ ...value, clearance })} />
+        <NumberField label="Edge margin" value={value.edge_margin} min={0} step={0.5} onChange={(edge_margin) => onChange({ ...value, edge_margin })} />
+        <NumberField label="Spacing" value={value.spacing} min={0} step={1} onChange={(spacing) => onChange({ ...value, spacing })} />
+      </div>
+      <p className="hint muted">Puzzle-piece knobs in the cut plane; pieces drop in along the slide axis (Z for X/Y cuts)</p>
+    </>
+  )
+}
+
+/** Mirrors the backend `JigsawJointSpec` validators. */
+export function jigsawErrors(v: Extract<JointSpec, { kind: 'jigsaw' }>): string[] {
+  const errors: string[] = []
+  if (v.head_diameter <= v.neck_width) errors.push('Head diameter must exceed neck width')
+  if (v.depth <= v.head_diameter / 2) errors.push('Depth must exceed half the head diameter')
+  return errors
+}
+
 type JointOf<K extends JointKind> = Extract<JointSpec, { kind: K }>
 
 /** Adding a joint kind = one entry here + one fields component. */
@@ -101,12 +137,14 @@ const JOINT_FORMS: { [K in JointKind]: ComponentType<JointFieldsProps<JointOf<K>
   none: NoJointFields,
   dowel: DowelFields,
   dovetail: DovetailFields,
+  jigsaw: JigsawFields,
 }
 
 const KIND_LABELS: { [K in JointKind]: string } = {
   none: 'None',
   dowel: 'Dowel pins',
   dovetail: 'Sliding dovetail',
+  jigsaw: 'Jigsaw knobs',
 }
 
 const KINDS = Object.keys(KIND_LABELS) as JointKind[]

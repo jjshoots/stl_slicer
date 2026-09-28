@@ -88,4 +88,9 @@ describe('PiecesList', () => {
     expect(screen.queryByText(/No pieces yet/)).not.toBeNull()
     expect(screen.queryByRole('list')).toBeNull()
   })
+
+  it('prints piece size and volume with units', () => {
+    setup()
+    expect(row('p_0_0_0').querySelector('.piece-meta')?.textContent).toBe('10.0 × 20.0 × 30.0 mm · 6.00 cm³')
+  })
 })

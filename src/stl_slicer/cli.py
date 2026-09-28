@@ -14,6 +14,7 @@ from stl_slicer.core.errors import MeshLoadError, PlanError
 from stl_slicer.core.models import (
     DovetailJointSpec,
     DowelJointSpec,
+    JigsawJointSpec,
     JointSpec,
     NoJointSpec,
     PrintVolume,
@@ -26,10 +27,13 @@ app = typer.Typer(
     help="Partition STL meshes into print-bed-sized pieces with interlocking joints.",
 )
 
-JOINT_KINDS: dict[str, type[NoJointSpec] | type[DowelJointSpec] | type[DovetailJointSpec]] = {
+JOINT_KINDS: dict[
+    str, type[NoJointSpec] | type[DowelJointSpec] | type[DovetailJointSpec] | type[JigsawJointSpec]
+] = {
     "none": NoJointSpec,
     "dowel": DowelJointSpec,
     "dovetail": DovetailJointSpec,
+    "jigsaw": JigsawJointSpec,
 }
 
 
@@ -60,7 +64,7 @@ def parse_bed(bed: str) -> PrintVolume:
 
 
 def joint_spec(kind: str) -> JointSpec:
-    """Default joint spec for `kind` (none, dowel or dovetail).
+    """Default joint spec for `kind` (none, dowel, dovetail or jigsaw).
 
     Raises:
         typer.BadParameter: unknown kind.
@@ -91,7 +95,7 @@ def serve(
 def slice_cmd(
     file: Annotated[Path, typer.Argument(help="Mesh file (STL, OBJ, PLY, 3MF, ...).")],
     bed: Annotated[str, typer.Option(help="Print volume in mm, AxBxC.")] = "220x220x250",
-    joint: Annotated[str, typer.Option(help="Joint kind: none|dowel|dovetail.")] = "none",
+    joint: Annotated[str, typer.Option(help="Joint kind: none|dowel|dovetail|jigsaw.")] = "none",
     scale: Annotated[float, typer.Option(help="Uniform scale applied on load.")] = 1.0,
     out: Annotated[Path, typer.Option("-o", "--out", help="Output directory.")] = Path("out"),
 ) -> None:

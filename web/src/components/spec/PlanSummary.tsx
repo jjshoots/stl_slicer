@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import type { Axis, Bounds, CutPlan, MeshAsset, SliceWarning, Vec3 } from '../../api/types'
-import { formatMm, formatNumberList, formatSize, formatVolume, humanizeCode } from '../../lib/format'
+import { formatLength, formatSize, formatVolume, humanizeCode } from '../../lib/format'
 
 export interface PlanSummaryProps {
   model: MeshAsset | null
@@ -14,6 +14,11 @@ function boundsSize(b: Bounds): Vec3 {
   return [b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]]
 }
 
+/** Axis subjects (`x` from CELL_OVERSIZE on an excluded axis) read better upper-cased; piece ids stay verbatim. */
+function formatSubject(subject: string): string {
+  return (AXES as string[]).includes(subject) ? `${subject.toUpperCase()} axis` : subject
+}
+
 function Warnings({ items }: { items: SliceWarning[] }): ReactElement | null {
   if (items.length === 0) return null
   return (
@@ -22,7 +27,7 @@ function Warnings({ items }: { items: SliceWarning[] }): ReactElement | null {
         <li key={`${w.code}-${w.subject ?? ''}-${i}`}>
           <span className="code">{humanizeCode(w.code)}</span>
           {w.message}
-          {w.subject && <span className="muted"> ({w.subject})</span>}
+          {w.subject && <span className="muted"> ({formatSubject(w.subject)})</span>}
         </li>
       ))}
     </ul>
@@ -38,7 +43,7 @@ export function PlanSummary({ model, plan, error }: PlanSummaryProps): ReactElem
         <dd className="mono">{model.filename}</dd>
         <dt>triangles</dt>
         <dd>{model.triangle_count.toLocaleString()}</dd>
-        <dt>size (mm)</dt>
+        <dt>size</dt>
         <dd>{formatSize(boundsSize(model.bounds))}</dd>
         <dt>volume</dt>
         <dd>{formatVolume(model.volume)}</dd>
@@ -63,14 +68,19 @@ export function PlanSummary({ model, plan, error }: PlanSummaryProps): ReactElem
   )
 }
 
+/** `2 @ 36.0, 72.0 mm` -- positions are model-frame millimetres. */
+export function formatCutPositions(positions: readonly number[]): string {
+  return `${positions.map((p) => p.toFixed(1)).join(', ')} mm`
+}
+
 function FragmentCuts({ axis, positions }: { axis: Axis; positions: number[] }): ReactElement {
-  const title = positions.length > 0 ? positions.map((p) => formatMm(p)).join(', ') : 'none'
+  const title = positions.length > 0 ? positions.map((p) => formatLength(p)).join(', ') : 'none'
   return (
     <>
       <dt>{axis} cuts</dt>
       <dd title={title}>
         {positions.length}
-        {positions.length > 0 && <span className="mono muted"> @ {formatNumberList(positions.map((p) => Number(p.toFixed(1))))}</span>}
+        {positions.length > 0 && <span className="mono muted"> @ {formatCutPositions(positions)}</span>}
       </dd>
     </>
   )

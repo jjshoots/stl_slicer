@@ -240,6 +240,10 @@ class Region2D:
     def translate(self, u: float, v: float) -> Region2D:
         return Region2D(self._cs.translate([float(u), float(v)]))
 
+    def transpose(self) -> Region2D:
+        """Swap the two coordinates: (u, v) -> (v, u) (a mirror across the line u = v)."""
+        return Region2D(self._cs.mirror([1.0, -1.0]))
+
     def contains(self, other: Region2D, tol: float = 1e-9) -> bool:
         return (other - self).area <= tol
 

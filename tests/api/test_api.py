@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from stl_slicer.api.app import create_app
 from stl_slicer.core.errors import MeshLoadError, PlanError
 from stl_slicer.core.models import (
+    Axis,
     AxisCuts,
     Bounds,
     CellLimits,
@@ -277,6 +278,18 @@ def test_plan(env: Env) -> None:
     assert plan.bounds == BOUNDS
 
 
+def test_plan_and_slice_round_trip_partition_axes(env: Env) -> None:
+    _upload(env.client)
+    body = {**SPEC, "partition": {"axes": ["x", "y"]}}
+    assert env.client.post("/api/models/m1/plan", json=body).status_code == 200
+    r = env.client.post("/api/models/m1/slice", json=body)
+    assert r.status_code == 200, r.text
+    ((_, spec),) = env.runner.submits
+    assert spec.partition.axes == [Axis.X, Axis.Y]
+    assert spec.model_dump(mode="json")["partition"]["axes"] == ["x", "y"]
+    assert SliceSpec.model_validate(spec.model_dump(mode="json")) == spec
+
+
 def test_plan_error_is_422(env: Env) -> None:
     _upload(env.client)
     r = env.client.post("/api/models/m1/plan", json={"print_volume": {"x": 1, "y": 100, "z": 100}})
@@ -295,6 +308,8 @@ def test_plan_unknown_model_is_404(env: Env) -> None:
         {"print_volume": {"x": 0, "y": 1, "z": 1}},
         {**SPEC, "joint": {"kind": "rivet"}},
         {**SPEC, "joint": {"kind": "dovetail", "neck_width": 12, "head_width": 8}},
+        {**SPEC, "joint": {"kind": "jigsaw", "neck_width": 12, "head_diameter": 8}},
+        {**SPEC, "partition": {"axes": ["w"]}},
     ],
 )
 def test_invalid_spec_is_422(env: Env, body: dict[str, Any]) -> None:

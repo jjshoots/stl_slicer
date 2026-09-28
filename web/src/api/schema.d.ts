@@ -426,6 +426,51 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * JigsawJointSpec
+         * @description A jigsaw-puzzle knob: a round head on a neck, drawn in the (u, normal) plane and extruded
+         *     along v through the cell, like a dovetail but with the classic puzzle-piece silhouette.
+         *
+         *     Pieces interlock against pull-apart along the normal and assemble by sliding along v (for cuts
+         *     along X and Y that is Z: pieces drop in from above, exactly like a flat puzzle).
+         */
+        JigsawJointSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "jigsaw";
+            /**
+             * Neck Width
+             * @default 8
+             */
+            neck_width: number;
+            /**
+             * Head Diameter
+             * @default 14
+             */
+            head_diameter: number;
+            /**
+             * Depth
+             * @default 18
+             */
+            depth: number;
+            /**
+             * Clearance
+             * @default 0.15
+             */
+            clearance: number;
+            /**
+             * Edge Margin
+             * @default 3
+             */
+            edge_margin: number;
+            /**
+             * Spacing
+             * @default 60
+             */
+            spacing: number;
+        };
+        /**
          * Job
          * @description Mutable: the runner updates progress in place (under its own lock).
          */
@@ -504,6 +549,8 @@ export interface components {
              * @default 2
              */
             bed_margin: number;
+            /** Axes */
+            axes?: components["schemas"]["Axis"][];
         };
         /** PieceInfo */
         PieceInfo: {
@@ -610,7 +657,12 @@ export interface components {
             print_volume: components["schemas"]["PrintVolume"];
             /**
              * @default {
-             *       "bed_margin": 2
+             *       "bed_margin": 2,
+             *       "axes": [
+             *         "x",
+             *         "y",
+             *         "z"
+             *       ]
              *     }
              */
             partition: components["schemas"]["PartitionSpec"];
@@ -620,7 +672,7 @@ export interface components {
              *       "kind": "none"
              *     }
              */
-            joint: components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"];
+            joint: components["schemas"]["NoJointSpec"] | components["schemas"]["DowelJointSpec"] | components["schemas"]["DovetailJointSpec"] | components["schemas"]["JigsawJointSpec"];
             /** @default lower */
             male_side: components["schemas"]["MaleSide"];
         };

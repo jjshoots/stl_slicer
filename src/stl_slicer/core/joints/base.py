@@ -10,10 +10,10 @@ from pydantic import BaseModel
 
 from stl_slicer.core.errors import SliceInvariantError
 from stl_slicer.core.geometry import Joint, LocalFrame, Region2D
-from stl_slicer.core.joints.placers import grid_placements
-from stl_slicer.core.models import CellIndex, CutInterface, Placement
+from stl_slicer.core.joints.placers import grid_placements, strip_placements
+from stl_slicer.core.models import Axis, CellIndex, CutInterface, Placement, Vec3
 
-__all__ = ["JointGenerator", "ProfileExtrusionJoint"]
+__all__ = ["JointGenerator", "ProfileExtrusionJoint", "ProfileStripJoint"]
 
 SpecT = TypeVar("SpecT", bound=BaseModel)
 
@@ -170,3 +170,87 @@ class ProfileExtrusionJoint(JointGenerator[SpecT]):
             profile.offset(clearance).translate(u, v), -clearance, depth + clearance
         )
         return male, female
+
+
+def _axis_of(vec: Vec3) -> Axis:
+    """The coordinate axis a (unit, axis-aligned) frame vector points along."""
+    mags = [abs(c) for c in vec]
+    return (Axis.X, Axis.Y, Axis.Z)[mags.index(max(mags))]
+
+
+class ProfileStripJoint(JointGenerator[SpecT]):
+    """A 2D profile drawn in the (in-plane, normal) plane and extruded along the other in-plane
+    axis over the full extent of the interface, so the joint slides in along that axis
+    (dovetail, jigsaw).
+
+    Slide-axis rule: the strip runs along the in-plane axis with the SMALLER extent (the model's
+    thickness) and the profile is drawn across the larger one; ties go to `v`. A flat model
+    therefore slides along Z for both X and Y cuts and assembles like a flat puzzle.
+
+    Subclasses provide `strip_profiles(spec) -> (male, female)` in the (across, normal) plane,
+    with the male spanning z in [0, depth] and the female = male grown by the clearance (z from
+    -clearance), plus `strip_half_width(spec)` for `strip_placements`."""
+
+    @abstractmethod
+    def strip_profiles(self, spec: SpecT) -> tuple[Region2D, Region2D]:
+        """(male, female) cross-sections in the (x=across, z=normal) plane, centred on x = 0."""
+
+    @abstractmethod
+    def strip_half_width(self, spec: SpecT) -> float:
+        """Half the footprint a strip needs across the region, perpendicular to the slide."""
+
+    @staticmethod
+    def _slides_along_u(extent_u: float, extent_v: float) -> bool:
+        return extent_u < extent_v
+
+    def slide_axis(self, interface: CutInterface) -> Axis:
+        """World axis this joint slides along on `interface` (the smaller in-plane extent)."""
+        frame = interface.frame
+        if self._slides_along_u(interface.extent_u, interface.extent_v):
+            return _axis_of(frame.u)
+        return _axis_of(frame.v)
+
+    @staticmethod
+    def _prism(
+        local: LocalFrame, profile: Region2D, y0: float, y1: float, along_u: bool
+    ) -> Manifold:
+        """Extrude a profile given in (across, z) along the slide axis over [y0, y1] (symmetric
+        ranges only when `along_u`)."""
+        # Extrude along local z over [-y1, -y0], then rotate +90 deg about x:
+        # (x, y, z) -> (x, -z, y), so the profile's 2nd coordinate becomes z and the extrusion
+        # covers local y in [y0, y1] with the profile drawn along local x (= u).
+        out: Manifold = local.extrude(profile, -y1, -y0).rotate([90.0, 0.0, 0.0])
+        if along_u:
+            # Rotate +90 deg about z: (x, y) -> (-y, x). The profile now runs along local y (= v)
+            # and the extrusion covers local x in [-y1, -y0] (the callers pass symmetric ranges).
+            out = out.rotate([0.0, 0.0, 90.0])
+        return out
+
+    def solid(
+        self,
+        local: LocalFrame,
+        placement: Placement,
+        spec: SpecT,
+        extent_u: float,
+        extent_v: float,
+    ) -> tuple[Manifold, Manifold]:
+        c = float(_sized(spec).clearance)
+        if not c > 0:
+            raise ValueError(f"{self.kind} joint requires clearance > 0, got {c}")
+        male_profile, female_profile = self.strip_profiles(spec)
+        along_u = self._slides_along_u(extent_u, extent_v)
+        # the strip spans exactly the interface rect along the slide; the cell clip bounds it
+        half_len = (extent_u if along_u else extent_v) / 2
+        male = self._prism(local, male_profile, -half_len, half_len, along_u)
+        female = self._prism(local, female_profile, -half_len - c, half_len + c, along_u)
+        offset = [0.0, float(placement.v), 0.0] if along_u else [float(placement.u), 0.0, 0.0]
+        return male.translate(offset), female.translate(offset)
+
+    def placements(
+        self, region: Region2D, spec: SpecT, extent_u: float, extent_v: float
+    ) -> list[Placement]:
+        hw, spacing = self.strip_half_width(spec), float(_sized(spec).spacing)
+        if not self._slides_along_u(extent_u, extent_v):
+            return strip_placements(region, hw, spacing)
+        # strips run along u: place across v by transposing the region, then map back
+        return [Placement(u=p.v, v=p.u) for p in strip_placements(region.transpose(), hw, spacing)]

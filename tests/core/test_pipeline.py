@@ -6,12 +6,14 @@ import itertools
 
 import pytest
 
-from stl_slicer.core.errors import Cancelled
+from stl_slicer.core.errors import Cancelled, PlanError
 from stl_slicer.core.geometry import LoadedModel, Mesh
 from stl_slicer.core.models import (
+    Axis,
     AxisCuts,
     DovetailJointSpec,
     DowelJointSpec,
+    JigsawJointSpec,
     JointSpec,
     MeshAsset,
     NoJointSpec,
@@ -42,11 +44,17 @@ def _spec(
     bed: float | tuple[float, float, float],
     joint: JointSpec | None = None,
     cuts: AxisCuts | None = None,
+    axes: list[Axis] | None = None,
 ) -> SliceSpec:
     x, y, z = bed if isinstance(bed, tuple) else (bed, bed, bed)
+    partition = (
+        PartitionSpec(cuts=cuts, bed_margin=2.0)
+        if axes is None
+        else PartitionSpec(cuts=cuts, bed_margin=2.0, axes=axes)
+    )
     return SliceSpec(
         print_volume=PrintVolume(x=x, y=y, z=z),
-        partition=PartitionSpec(cuts=cuts, bed_margin=2.0),
+        partition=partition,
         joint=joint if joint is not None else NoJointSpec(),
     )
 
@@ -310,21 +318,41 @@ def test_no_contact_not_warned_next_to_empty_cell() -> None:
     _assert_consistent(result)
 
 
-def test_assembly_conflict_warning() -> None:
-    slab = _box((0, 0, 0), (100, 100, 20))
-    result = slice_model(make_model(slab), _spec(60.0, DovetailJointSpec())).result
-    assert len(result.plan.cells) == 4  # max_cell 50 -> cuts in x and y only
-    assert len(result.pieces) == 4
-    assert len(result.joints) == 4
+@pytest.mark.parametrize(
+    "joint", [DovetailJointSpec(), JigsawJointSpec(depth=10, neck_width=5, head_diameter=8)]
+)
+def test_assembly_conflict_warning(joint: JointSpec) -> None:
+    # 90 mm cube, bed 60 -> 2x2x2; every interface is 45x45 (a tie -> slide along v):
+    # X cuts slide along Z, Y cuts along X, Z cuts along Y -> every piece conflicts.
+    cube = _box((0, 0, 0), (90, 90, 90))
+    result = slice_model(make_model(cube), _spec(60.0, joint)).result
+    assert len(result.plan.cells) == 8
+    assert len(result.pieces) == 8
+    assert len(result.joints) >= 12
     conflicts = _subjects(result, WarningCode.ASSEMBLY_CONFLICT)
     assert sorted(s or "" for s in conflicts) == sorted(p.piece_id for p in result.pieces)
     _assert_consistent(result)
 
-    strip = _box((0, 0, 0), (100, 40, 20))
-    result = slice_model(make_model(strip), _spec(60.0, DovetailJointSpec())).result
-    assert len(result.pieces) == 2
-    assert len(result.joints) > 0
+    # flat slab, cuts in x and y only (bed 70 -> 2x2 for both depths): both slide along Z (the
+    # thickness) -> no conflict
+    slab = _box((0, 0, 0), (100, 100, 20))
+    result = slice_model(make_model(slab), _spec(70.0, joint)).result
+    assert len(result.pieces) == 4
+    assert len(result.joints) == 4
     assert WarningCode.ASSEMBLY_CONFLICT not in _codes(result)
+    _assert_consistent(result)
+
+
+def test_dovetail_y_cut_on_a_slab_slides_along_z() -> None:
+    """A Y cut has frame (u=Z, v=X); on a slab u is the thinner extent, so the strip runs along
+    Z and is placed across X: the male spans the whole slab thickness."""
+    strip = _box((0, 0, 0), (40, 100, 20))
+    out = slice_model(make_model(strip), _spec(60.0, DovetailJointSpec()))
+    result = out.result
+    assert [i.axis for i in result.plan.interfaces] == [Axis.Y]
+    assert len(result.joints) == 1
+    assert result.joints[0].placement.v == pytest.approx(20.0 - 20.0)  # v = X, centred at 20
+    _assert_consistent(result)
 
 
 def test_dowels_never_raise_assembly_conflict() -> None:
@@ -355,3 +383,53 @@ def test_dovetail_full_length_strip_is_never_reported_as_clipped() -> None:
     _assert_consistent(result2)
     assert any(i.axis.value == "z" for i in result2.plan.interfaces)
     assert WarningCode.JOINT_CLIPPED not in _codes(result2)
+
+
+# --- cut-axis selection and jigsaw -----------------------------------------------------------
+
+
+def test_axes_restriction_flat_slab_no_z_cuts() -> None:
+    slab = _box((0, 0, 0), (300, 300, 15))
+    result = slice_model(make_model(slab), _spec(100.0, axes=[Axis.X, Axis.Y])).result
+    assert result.plan.cuts.z == []
+    assert len(result.plan.cuts.x) == 3 and len(result.plan.cuts.y) == 3  # max_cell 96 -> 4x4
+    assert len(result.pieces) == 16
+    assert all(p.fits_bed for p in result.pieces)
+    assert result.warnings == []
+    _assert_consistent(result)
+
+
+def test_axes_restriction_oversize_axis_is_reported_twice() -> None:
+    """Excluding an axis the model overflows yields CELL_OVERSIZE (planner, subject = axis) and
+    PIECE_OVERSIZE per piece, exactly as before."""
+    tall = _box((0, 0, 0), (50, 50, 150))
+    result = slice_model(make_model(tall), _spec(100.0, axes=[Axis.X, Axis.Y])).result
+    assert result.plan.cuts == AxisCuts()
+    assert len(result.pieces) == 1
+    assert _subjects(result, WarningCode.CELL_OVERSIZE) == ["z"]
+    assert _subjects(result, WarningCode.PIECE_OVERSIZE) == ["p_x0_y0_z0"]
+    assert not result.pieces[0].fits_bed
+
+
+def test_axes_restriction_rejects_explicit_cut_on_excluded_axis() -> None:
+    slab = _box((0, 0, 0), (100, 100, 20))
+    with pytest.raises(PlanError, match="excluded"):
+        slice_model(make_model(slab), _spec(60.0, cuts=AxisCuts(z=[10]), axes=[Axis.X]))
+
+
+def test_jigsaw_flat_puzzle_end_to_end() -> None:
+    slab = _box((0, 0, 0), (200, 200, 15))
+    # bed 130: max_cell = 130 - 18 (depth) - 4 = 108 -> 2x2; pieces are 100 + 18 = 118 mm wide
+    spec = _spec(130.0, JigsawJointSpec(), axes=[Axis.X, Axis.Y])
+    result = slice_model(make_model(slab), spec).result
+    assert result.plan.cuts.z == []
+    assert len(result.plan.cells) == 4
+    assert len(result.pieces) == 4
+    assert result.stats.max_overlap_volume == 0.0
+    assert all(p.fits_bed for p in result.pieces)
+    assert len(result.joints) > 0
+    assert all(j.kind == "jigsaw" for j in result.joints)
+    # both X and Y cuts slide along Z (the 15 mm thickness): a flat puzzle, no conflicts
+    assert {j.interface_id for j in result.joints} == {i.id for i in result.plan.interfaces}
+    assert result.warnings == []
+    _assert_consistent(result)

@@ -14,6 +14,7 @@ from typing import Protocol
 
 from stl_slicer.core.errors import Cancelled
 from stl_slicer.core.geometry import Joint, LoadedModel, Mesh, Piece, Region2D, SliceOutput
+from stl_slicer.core.joints.base import ProfileStripJoint
 from stl_slicer.core.joints.registry import get_generator, spec_clearance, spec_depth
 from stl_slicer.core.models import (
     Axis,
@@ -25,7 +26,6 @@ from stl_slicer.core.models import (
     SliceResult,
     SliceSpec,
     SliceWarning,
-    Vec3,
     WarningCode,
 )
 from stl_slicer.core.planning import plan_grid
@@ -76,12 +76,6 @@ def cell_limits(spec: SliceSpec) -> CellLimits:
         bed.z - depth - 2 * margin,
     )
     return CellLimits(max_cell=max_cell, min_cell=depth + clearance + 1.0)
-
-
-def _axis_of(vec: Vec3) -> Axis:
-    """The coordinate axis a (unit, axis-aligned) frame vector points along."""
-    mags = [abs(c) for c in vec]
-    return (Axis.X, Axis.Y, Axis.Z)[mags.index(max(mags))]
 
 
 def _cell_occupied(mesh: Mesh, cell: Cell) -> bool:
@@ -142,16 +136,18 @@ def _place_joints(
 
 
 def _assembly_conflicts(
-    plan: CutPlan, joints: list[Joint], piece_ids: set[str]
+    plan: CutPlan, joints: list[Joint], piece_ids: set[str], kind: str
 ) -> list[SliceWarning]:
-    """Dovetails slide along the frame's v axis; a piece whose dovetails slide along different
-    axes cannot be assembled by sliding (docs/00_design.md §4.2)."""
-    frames = {i.id: i.frame for i in plan.interfaces}
+    """Strip joints (dovetail, jigsaw) slide along `generator.slide_axis(interface)`; a piece
+    whose joints slide along different axes cannot be assembled by sliding
+    (docs/00_design.md §4.2)."""
+    gen = get_generator(kind)
+    if not isinstance(gen, ProfileStripJoint):
+        return []
+    interfaces = {i.id: i for i in plan.interfaces}
     axes: defaultdict[str, set[Axis]] = defaultdict(set)
     for joint in joints:
-        if joint.kind != "dovetail":
-            continue
-        axis = _axis_of(frames[joint.interface_id].v)
+        axis = gen.slide_axis(interfaces[joint.interface_id])
         axes[f"p_{joint.male_cell.id}"].add(axis)
         axes[f"p_{joint.female_cell.id}"].add(axis)
     warnings: list[SliceWarning] = []
@@ -164,7 +160,7 @@ def _assembly_conflicts(
                 SliceWarning(
                     code=WarningCode.ASSEMBLY_CONFLICT,
                     message=(
-                        f"piece {piece_id} has dovetails sliding along different axes ({names}); "
+                        f"piece {piece_id} has sliding joints along different axes ({names}); "
                         "it cannot be assembled by sliding alone"
                     ),
                     subject=piece_id,
@@ -192,7 +188,9 @@ def slice_model(
     warnings: list[SliceWarning] = []
 
     report(0.0, "planning")
-    plan = plan_grid(model.mesh.bounds, cell_limits(spec), spec.partition.cuts)
+    plan = plan_grid(
+        model.mesh.bounds, cell_limits(spec), spec.partition.cuts, axes=spec.partition.axes
+    )
     warnings.extend(plan.warnings)
     check()
 
@@ -259,7 +257,9 @@ def slice_model(
                 )
             )
 
-    warnings.extend(_assembly_conflicts(plan, joints, {p.info.piece_id for p in pieces}))
+    warnings.extend(
+        _assembly_conflicts(plan, joints, {p.info.piece_id for p in pieces}, spec.joint.kind)
+    )
 
     joint_infos = [
         JointInfo(

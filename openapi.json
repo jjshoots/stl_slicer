@@ -916,6 +916,55 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "JigsawJointSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "jigsaw",
+            "title": "Kind",
+            "default": "jigsaw"
+          },
+          "neck_width": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Neck Width",
+            "default": 8.0
+          },
+          "head_diameter": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Head Diameter",
+            "default": 14.0
+          },
+          "depth": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Depth",
+            "default": 18.0
+          },
+          "clearance": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Clearance",
+            "default": 0.15
+          },
+          "edge_margin": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Edge Margin",
+            "default": 3.0
+          },
+          "spacing": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Spacing",
+            "default": 60.0
+          }
+        },
+        "type": "object",
+        "title": "JigsawJointSpec",
+        "description": "A jigsaw-puzzle knob: a round head on a neck, drawn in the (u, normal) plane and extruded\nalong v through the cell, like a dovetail but with the classic puzzle-piece silhouette.\n\nPieces interlock against pull-apart along the normal and assemble by sliding along v (for cuts\nalong X and Y that is Z: pieces drop in from above, exactly like a flat puzzle)."
+      },
       "Job": {
         "properties": {
           "job_id": {
@@ -1095,6 +1144,13 @@
             "minimum": 0.0,
             "title": "Bed Margin",
             "default": 2.0
+          },
+          "axes": {
+            "items": {
+              "$ref": "#/components/schemas/Axis"
+            },
+            "type": "array",
+            "title": "Axes"
           }
         },
         "type": "object",
@@ -1372,7 +1428,12 @@
           "partition": {
             "$ref": "#/components/schemas/PartitionSpec",
             "default": {
-              "bed_margin": 2.0
+              "bed_margin": 2.0,
+              "axes": [
+                "x",
+                "y",
+                "z"
+              ]
             }
           },
           "joint": {
@@ -1385,6 +1446,9 @@
               },
               {
                 "$ref": "#/components/schemas/DovetailJointSpec"
+              },
+              {
+                "$ref": "#/components/schemas/JigsawJointSpec"
               }
             ],
             "title": "Joint",
@@ -1396,6 +1460,7 @@
               "mapping": {
                 "dovetail": "#/components/schemas/DovetailJointSpec",
                 "dowel": "#/components/schemas/DowelJointSpec",
+                "jigsaw": "#/components/schemas/JigsawJointSpec",
                 "none": "#/components/schemas/NoJointSpec"
               }
             }

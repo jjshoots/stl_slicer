@@ -106,7 +106,7 @@ def test_jigsaw_spec_validates_knob_shape() -> None:
     with pytest.raises(ValidationError):
         JigsawJointSpec(neck_width=10, head_diameter=10)
     with pytest.raises(ValidationError):
-        JigsawJointSpec(head_diameter=14, depth=6)
+        JigsawJointSpec(head_diameter=14, depth=12)
 
 
 def test_partition_axes_default_to_all_three() -> None:

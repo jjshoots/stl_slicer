@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 import math
+from collections.abc import Sequence
 
 from stl_slicer.core.errors import PlanError
 from stl_slicer.core.models import (
@@ -84,24 +85,41 @@ def _validate_cuts(axis: Axis, lo: float, hi: float, cuts: list[float], min_cell
             )
 
 
-def plan_grid(bounds: Bounds, limits: CellLimits, cuts: AxisCuts | None = None) -> CutPlan:
-    """Partition `bounds` into an axis-aligned grid of cells and the interfaces between them."""
+def plan_grid(
+    bounds: Bounds,
+    limits: CellLimits,
+    cuts: AxisCuts | None = None,
+    *,
+    axes: Sequence[Axis] | None = None,
+) -> CutPlan:
+    """Partition `bounds` into an axis-aligned grid of cells and the interfaces between them.
+
+    `axes` restricts which axes may be cut along (None = all three). An excluded axis gets no
+    auto cuts, rejects explicit cuts with `PlanError`, and yields `CELL_OVERSIZE` (subject = the
+    axis) when the extent exceeds `max_cell`. `CELL_OVERSIZE` therefore has exactly two sources:
+    explicit cuts that leave a cell too wide, and an excluded axis whose extent is too large.
+    """
     for axis in _AXES:
         if limits.max_cell[axis.ordinal] <= 0:
             raise PlanError(
                 f"max_cell along {axis.value} must be > 0, got {limits.max_cell[axis.ordinal]}"
             )
+    allowed = frozenset(_AXES if axes is None else axes)
 
     warnings: list[SliceWarning] = []
     per_axis: list[list[float]] = []
     for axis in _AXES:
         lo, hi = bounds.min[axis.ordinal], bounds.max[axis.ordinal]
         max_cell = limits.max_cell[axis.ordinal]
+        cuttable = axis in allowed
         if cuts is None:
-            axis_cuts = even_cuts(lo, hi, max_cell)
+            axis_cuts = even_cuts(lo, hi, max_cell) if cuttable else []
         else:
             axis_cuts = list(cuts.for_axis(axis))
+            if axis_cuts and not cuttable:
+                raise PlanError(f"axis {axis.value} is excluded from cutting but has cuts")
             _validate_cuts(axis, lo, hi, axis_cuts, limits.min_cell)
+        if cuts is not None or not cuttable:
             for a, b in itertools.pairwise([lo, *axis_cuts, hi]):
                 width = b - a
                 if width > max_cell * (1 + _TOL):

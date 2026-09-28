@@ -8,16 +8,20 @@ import pytest
 from manifold3d import Manifold
 
 from stl_slicer.core.geometry import LocalFrame, Region2D
-from stl_slicer.core.joints.base import JointGenerator
+from stl_slicer.core.joints.base import JointGenerator, ProfileStripJoint
 from stl_slicer.core.joints.dovetail import DovetailJoint
 from stl_slicer.core.joints.dowel import DowelJoint
+from stl_slicer.core.joints.jigsaw import JigsawJoint
 from stl_slicer.core.joints.registry import REGISTRY, get_generator, spec_clearance, spec_depth
 from stl_slicer.core.models import (
+    Axis,
+    AxisCuts,
     Bounds,
     CellLimits,
     CutInterface,
     DovetailJointSpec,
     DowelJointSpec,
+    JigsawJointSpec,
     NoJointSpec,
     Placement,
 )
@@ -192,6 +196,83 @@ def test_dovetail_interlocks(interface: CutInterface) -> None:
     fb = [float(x) for x in female.bounding_box()]
     assert fb[1] == pytest.approx(-50.0 - spec.clearance)
     assert fb[5] == pytest.approx(spec.depth + spec.clearance)
+
+
+def test_jigsaw_strips(interface: CutInterface) -> None:
+    spec = JigsawJointSpec(spacing=60, edge_margin=3)
+    joints = JigsawJoint().call(interface, _full(interface), spec, interface.lower, interface.upper)
+    assert len(joints) == 2
+    assert [j.placement.u for j in joints] == pytest.approx([-30.0, 30.0])
+    for j in joints:
+        bb = _bb(j.male)  # x-interface: v is world Z; the knob runs through the whole cell
+        assert bb[2] == pytest.approx(0.0)
+        assert bb[5] == pytest.approx(100.0)
+
+
+def test_jigsaw_interlocks(interface: CutInterface) -> None:
+    spec = JigsawJointSpec(neck_width=8, head_diameter=14, depth=20)
+    male, female = JigsawJoint().solid(
+        LocalFrame(interface.frame), Placement(u=0, v=0), spec, 100, 100
+    )
+
+    def width_at(z: float) -> float:
+        b = [float(x) for x in male.slice(z).bounds()]
+        return b[2] - b[0]
+
+    head_z = spec.depth - spec.head_diameter / 2
+    assert width_at(0.5) == pytest.approx(spec.neck_width)
+    assert width_at(head_z) == pytest.approx(spec.head_diameter, abs=0.02)
+    assert width_at(head_z) > width_at(0.5)  # undercut -> interlocks along the normal
+    mb = [float(x) for x in male.bounding_box()]
+    assert mb[2] == pytest.approx(0.0) and mb[5] == pytest.approx(spec.depth)
+    assert mb[1] == pytest.approx(-50.0) and mb[4] == pytest.approx(50.0)
+    fb = [float(x) for x in female.bounding_box()]
+    assert fb[2] == pytest.approx(-spec.clearance)
+    # round-join offset of a 48-gon sits a hair under the true arc at the apex
+    assert fb[5] == pytest.approx(spec.depth + spec.clearance, abs=1e-3)
+    assert fb[1] == pytest.approx(-50.0 - spec.clearance)
+
+
+SLAB = Bounds(min=(0, 0, 0), max=(200, 200, 15))
+BAR = Bounds(min=(0, 0, 0), max=(30, 30, 200))
+STRIP_KINDS = [k for k in KINDS if isinstance(get_generator(k), ProfileStripJoint)]
+
+
+def _plan_ifaces(bounds: Bounds, cuts: AxisCuts) -> dict[Axis, CutInterface]:
+    plan = plan_grid(bounds, CellLimits(max_cell=(1000, 1000, 1000)), cuts)
+    return {i.axis: i for i in plan.interfaces}
+
+
+@pytest.mark.parametrize("kind", STRIP_KINDS)
+def test_slide_axis_rule(kind: str) -> None:
+    gen = get_generator(kind)
+    assert isinstance(gen, ProfileStripJoint)
+    slab = _plan_ifaces(SLAB, AxisCuts(x=[100], y=[100]))
+    assert gen.slide_axis(slab[Axis.X]) is Axis.Z  # frame (u=Y, v=Z): v is thinner
+    assert gen.slide_axis(slab[Axis.Y]) is Axis.Z  # frame (u=Z, v=X): u is thinner -> swapped
+    bar = _plan_ifaces(BAR, AxisCuts(z=[100]))
+    assert gen.slide_axis(bar[Axis.Z]) is Axis.Y  # 30x30 tie -> v = Y
+
+
+@pytest.mark.parametrize("kind", STRIP_KINDS)
+def test_strip_runs_along_the_thin_axis_on_a_y_cut(kind: str) -> None:
+    gen = get_generator(kind)
+    spec = gen.spec_type()
+    iface = _plan_ifaces(SLAB, AxisCuts(x=[100], y=[100]))[Axis.Y]
+    region = Region2D.rect(*iface.rect)
+    joints = gen.call(iface, region, spec, iface.lower, iface.upper)
+    assert joints
+    # placements are sorted and spread across v (= X); the strip spans the whole 15 mm of Z
+    keys = [(j.placement.u, j.placement.v) for j in joints]
+    assert keys == sorted(keys)
+    assert all(j.placement.u == pytest.approx(0.0) for j in joints)
+    assert len({round(j.placement.v, 6) for j in joints}) == len(joints)
+    depth = spec_depth(spec)
+    for j in joints:
+        bb = _bb(j.male)
+        assert bb[2] == pytest.approx(0.0) and bb[5] == pytest.approx(15.0)  # world Z
+        assert bb[1] >= iface.position - TOL and bb[4] <= iface.position + depth + TOL  # normal Y
+        assert bb[3] - bb[0] < 100.0  # not a strip along X
 
 
 def test_cells_must_belong_to_interface(interface: CutInterface) -> None:

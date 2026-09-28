@@ -9,6 +9,7 @@ import { useModelUpload } from './hooks/useModelUpload'
 import { usePlanPreview } from './hooks/usePlanPreview'
 import { usePresets } from './hooks/usePresets'
 import { useSliceJob } from './hooks/useSliceJob'
+import { boundsSize } from './lib/explode'
 import { useDataStore } from './store/data'
 import { useViewStore } from './store/view'
 
@@ -71,6 +72,8 @@ export function App(): ReactElement {
           hidden={hidden}
           selected={selected ?? undefined}
           onSelect={(id) => select(selected === id ? null : id)}
+          modelSize={model ? boundsSize(model.bounds) : undefined}
+          pieceCount={result?.stats.piece_count}
         />
       }
       footer={

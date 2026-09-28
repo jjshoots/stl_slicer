@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import type { Job } from '../../api/types'
-import { formatPercent } from '../../lib/format'
+import { formatPercent, formatVolume } from '../../lib/format'
 
 export interface DownloadBarProps {
   explode: number
@@ -39,7 +39,7 @@ function JobStatusView({ job, onCancel }: { job: Job; onCancel(): void }): React
       const stats = job.result?.stats
       return stats ? (
         <span className="muted">
-          {stats.piece_count} pieces in {stats.duration_s.toFixed(1)} s
+          {stats.piece_count} pieces · {formatVolume(stats.output_volume)} in {stats.duration_s.toFixed(1)} s
         </span>
       ) : null
     }

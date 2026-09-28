@@ -51,7 +51,9 @@ def _default_planner(model: LoadedModel, spec: SliceSpec, /) -> CutPlan:
     from stl_slicer.core.pipeline import cell_limits
     from stl_slicer.core.planning import plan_grid
 
-    return plan_grid(model.asset.bounds, cell_limits(spec), spec.partition.cuts)
+    return plan_grid(
+        model.asset.bounds, cell_limits(spec), spec.partition.cuts, axes=spec.partition.axes
+    )
 
 
 async def _domain_error(_request: Request, exc: Exception) -> JSONResponse:
