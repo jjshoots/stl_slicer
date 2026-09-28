@@ -114,3 +114,11 @@ def test_partition_axes_default_to_all_three() -> None:
 
     assert PartitionSpec().axes == [Axis.X, Axis.Y, Axis.Z]
     assert PartitionSpec(axes=["x", "y"]).axes == [Axis.X, Axis.Y]
+
+
+def test_joint_specs_carry_auto_flag_and_plan_carries_resolved_joint() -> None:
+    from stl_slicer.core.models import CutPlan, JigsawJointSpec
+
+    assert DowelJointSpec().auto is False
+    assert JigsawJointSpec(auto=True).auto is True
+    assert "resolved_joint" in CutPlan.model_fields

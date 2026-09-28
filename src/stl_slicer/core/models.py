@@ -162,32 +162,6 @@ class SliceWarning(_Frozen):
     subject: str | None = None
 
 
-class CutPlan(_Frozen):
-    bounds: Bounds
-    limits: CellLimits
-    cuts: AxisCuts
-    cells: list[Cell]
-    interfaces: list[CutInterface]
-    warnings: list[SliceWarning] = Field(default_factory=list)
-
-    @property
-    def cell_count(self) -> int:
-        """Upper bound on the number of pieces (empty cells are dropped at slice time)."""
-        return len(self.cells)
-
-    @functools.cached_property
-    def cells_by_id(self) -> dict[str, Cell]:
-        """``{cell.id: cell}``, built once per instance (not a field: never serialised/compared)."""
-        return {c.id: c for c in self.cells}
-
-    def cell(self, index: CellIndex) -> Cell:
-        """The cell at `index` (O(1)). Raises KeyError(index.id) if the plan has no such cell."""
-        found = self.cells_by_id.get(index.id)
-        if found is None:
-            raise KeyError(index.id)
-        return found
-
-
 # --- joint specs: a discriminated union; adding a kind = adding a model + a generator -------------
 
 
@@ -207,6 +181,9 @@ class DowelJointSpec(_Frozen):
     """A cylindrical registration pin straddling the cut plane."""
 
     kind: Literal["dowel"] = "dowel"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
     diameter: float = Field(default=8.0, gt=0)
     depth: float = Field(default=6.0, gt=0)
     clearance: float = Field(default=0.15, gt=0)
@@ -220,6 +197,9 @@ class DovetailJointSpec(_Frozen):
     Pieces interlock against pull-apart along the normal and assemble by sliding along v."""
 
     kind: Literal["dovetail"] = "dovetail"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
     neck_width: float = Field(default=8.0, gt=0)
     head_width: float = Field(default=12.0, gt=0)
     depth: float = Field(default=6.0, gt=0)
@@ -242,6 +222,9 @@ class JigsawJointSpec(_Frozen):
     along X and Y that is Z: pieces drop in from above, exactly like a flat puzzle)."""
 
     kind: Literal["jigsaw"] = "jigsaw"
+    auto: bool = False
+    """When true the numeric fields are ignored and derived from the model and bed by
+    `core.joints.auto.resolve_joint`; the resolved spec (auto=False) is what the pipeline runs."""
     neck_width: float = Field(default=8.0, gt=0)
     head_diameter: float = Field(default=14.0, gt=0)
     depth: float = Field(default=18.0, gt=0)
@@ -263,6 +246,34 @@ class JigsawJointSpec(_Frozen):
 JointSpec = Annotated[
     NoJointSpec | DowelJointSpec | DovetailJointSpec | JigsawJointSpec, Field(discriminator="kind")
 ]
+
+
+class CutPlan(_Frozen):
+    bounds: Bounds
+    limits: CellLimits
+    cuts: AxisCuts
+    cells: list[Cell]
+    interfaces: list[CutInterface]
+    warnings: list[SliceWarning] = Field(default_factory=list)
+    resolved_joint: JointSpec | None = None
+    """The concrete joint spec this plan was sized for (auto sizing already applied)."""
+
+    @property
+    def cell_count(self) -> int:
+        """Upper bound on the number of pieces (empty cells are dropped at slice time)."""
+        return len(self.cells)
+
+    @functools.cached_property
+    def cells_by_id(self) -> dict[str, Cell]:
+        """``{cell.id: cell}``, built once per instance (not a field: never serialised/compared)."""
+        return {c.id: c for c in self.cells}
+
+    def cell(self, index: CellIndex) -> Cell:
+        """The cell at `index` (O(1)). Raises KeyError(index.id) if the plan has no such cell."""
+        found = self.cells_by_id.get(index.id)
+        if found is None:
+            raise KeyError(index.id)
+        return found
 
 
 class MaleSide(StrEnum):
